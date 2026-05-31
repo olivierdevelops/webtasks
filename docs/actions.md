@@ -1,49 +1,50 @@
 # Action reference
 
-The complete vocabulary the flow interpreter understands. Every `run:` keyword
-is listed here with all of its parameters, defaults, output shape, and an
-example. This is the detailed companion to the condensed table in
-[cookbook.md](cookbook.md#action-reference).
+The complete vocabulary a `.webtask` recipe understands. Every action is listed
+here with its parameters, defaults, output shape, and an example. This is the
+detailed companion to the condensed table in [Recipes](cookbook.md).
 
-Each step in a task's `flow:` is one command:
+A step is one action. An optional `status "…"` line **before** a step sets the
+live progress message SSE callers see; some actions open a block closed with
+`end`:
 
-```yaml
-- run: <action>            # the keyword (required)
-  status: "Human text"     # optional: emitted as an SSE `status` event
-  as: <name>               # optional: where the result is stored
-  record: true             # optional: screencast just this step to a GIF
-  params: { … }            # action-specific parameters
-  do:                      # child steps, for the block actions
-    - run: …
+```capy
+status "Human text"           # optional: emitted as an SSE status event
+goto "https://example.com"    # a simple step
+
+record clip path "/tmp/run.gif"   # a block action…
+    goto "https://example.com"    # …child steps run inside
+    click "#more"
+end
 ```
 
 Conventions in the tables below:
 
 - A param written `name?=default` is optional with that default; `name` with no
   `=` is required (or the step errors).
-- **"Output"** describes what an `as:` binding receives, and is also what lands
-  in the response `data`. Most artifact actions accept `path:` (write to disk),
-  `as:` (return inline), or both.
-- Param values are templated first — see [templating.md](templating.md).
+- **"Output"** describes what a step's result name receives, and is also what
+  lands in the response `data`. Most capture actions accept a `path` (write to
+  disk), a result name (return inline), or both.
+- Param values are templated first — see [Templating](templating.md).
 
 ---
 
 ## Table of contents
 
-- [Navigation & timing](#navigation--timing)
-- [Input & interaction](#input--interaction)
+- [Navigation & timing](#navigation-timing)
+- [Input & interaction](#input-interaction)
 - [Scrolling](#scrolling)
 - [JavaScript](#javascript)
 - [Extraction](#extraction)
-- [Rendering & capture](#rendering--capture)
+- [Rendering & capture](#rendering-capture)
 - [Recording](#recording)
-- [Network & session](#network--session)
-- [Downloads & blob capture](#downloads--blob-capture)
+- [Network & session](#network-session)
+- [Downloads & blob capture](#downloads-blob-capture)
 - [Control flow](#control-flow)
-- [Values & data](#values--data)
+- [Values & data](#values-data)
 - [Filesystem](#filesystem)
 - [Events](#events)
-- [How results are stored: `as`, `path`, `__result__`](#how-results-are-stored)
+- [How results are stored](#how-results-are-stored)
 
 ---
 
@@ -57,41 +58,37 @@ Navigate the window to a URL.
 |---|---|
 | `url` | Absolute URL. Templated, so `{{q}}` etc. work. |
 
-```yaml
-- run: goto
-  params: { url: "https://example.com/?q={{query}}" }
+```capy
+goto "https://example.com/?q={{query}}"
 ```
 
 ### `wait`
 
-Sleep for a fixed duration. Use sparingly — prefer `wait-for` / `wait-for-network-idle`.
+Sleep for a fixed duration. Use sparingly — prefer `wait until` / `wait-network-idle`.
 
 | Param | Notes |
 |---|---|
-| `duration` | Milliseconds. Accepts the underscore form (`5_000`) for readability. |
+| duration | Milliseconds. |
 
-```yaml
-- run: wait
-  params: { duration: "8_000" }
+```capy
+wait 8000
 ```
 
-### `wait-for`
+### `wait until`
 
 Block until a selector is present in the DOM.
 
 | Param | Notes |
 |---|---|
-| `selector` | CSS selector to wait for. |
-| `timeoutMs?=10000` | Fail with a timeout error if it never appears. |
+| selector | CSS selector to wait for. |
+| `timeout?=10000` | Fail with a timeout error if it never appears. |
 
-```yaml
-- run: wait-for
-  params: { selector: "article h3 a", timeoutMs: 15000 }
+```capy
+wait until "article h3 a" timeout 15000
 ```
 
-`wait-for` matches DOM *presence*, not "data loaded". For SPAs that render a
-skeleton first, wait for the loaded state (e.g.
-`.results .item:not(.loading)`).
+`wait until` matches DOM *presence*, not "data loaded". For SPAs that render a
+skeleton first, wait for the loaded state (e.g. `.results .item:not(.loading)`).
 
 ---
 
@@ -103,74 +100,55 @@ Focus an element and type text into it.
 
 | Param | Notes |
 |---|---|
-| `selector` | The field to type into. |
+| selector | The field to type into. |
 | `keys` | The text to type (templated). |
 
-```yaml
-- run: sendkeys
-  params: { selector: "#search", keys: "{{query}}" }
+```capy
+sendkeys "#search" keys "{{query}}"
 ```
 
-### `action` (click)
+### `click`
 
-A native, trusted click via CDP (`Input.dispatchMouseEvent`) — works on sites
-that gate handlers on `isTrusted`, unlike JS-dispatched events. The only
-supported `action` value is `click`.
+A native, trusted click via CDP — works on sites that gate handlers on
+`isTrusted`, unlike JS-dispatched events.
 
 | Param | Notes |
 |---|---|
-| `action` | Must be `click`. |
-| `selector?=*` | Element to click (or to match by text when `text:` is set). |
+| selector | Element to click (or to match by text when `text` is set). |
 | `text?` | When set, click the first `selector` whose **visible text** matches. |
-| `match?=exact` | `exact` or `contains` (substring match) — only with `text:`. |
+| `match?=exact` | `exact` or `contains` — only with `text`. |
 | `closest?` | After matching by text, retarget the click to that element's nearest matching ancestor. Pattern: *match a label, click its row.* |
 
 Click the first match of a selector:
 
-```yaml
-- run: action
-  params: { action: click, selector: "button[type='submit']" }
+```capy
+click "button[type='submit']"
 ```
 
 Click by visible text, retargeting to a row ancestor:
 
-```yaml
-- run: action
-  params:
-    action: click
-    selector: ".name"
-    text: "Nicholas Huang"
-    match: exact
-    closest: ".chat-row"
+```capy
+click ".name" text "Nicholas Huang" match exact closest ".chat-row"
 ```
-
-> When you only know an element by text *and* the site needs a real
-> MouseEvent sequence on an inner node, a small `js` module is sometimes
-> clearer — see [cookbook.md §5](cookbook.md#5-open-a-chat-by-visible-name-concio-pattern).
 
 ---
 
 ## Scrolling
 
-### `scroll-until-stable`
+### `scroll until stable`
 
 Repeatedly scroll a container and stop once its `scrollHeight` stops changing —
 the standard way to exhaust infinite-scroll feeds and chat history.
 
 | Param | Notes |
 |---|---|
-| `selector` | The scrollable container. |
-| `direction?=up` | `up` (sets `scrollTop=0`, loads older content) or `down` (sets to `scrollHeight`). |
-| `stableMs?=1500` | Exit once the height has been unchanged for this long. |
-| `maxIterations?=0` | Cap the number of scroll steps. `0` = unbounded. |
+| selector | The scrollable container. |
+| `direction?=up` | `up` (loads older content) or `down`. |
+| `stable?=1500` | Exit once height has been unchanged for this many ms. |
+| `max?=0` | Cap the number of scroll steps. `0` = unbounded. |
 
-```yaml
-- run: scroll-until-stable
-  params:
-    selector: ".chats.chat-content-scroll"
-    direction: up
-    stableMs: 2500
-    maxIterations: 0
+```capy
+scroll until stable ".chats.chat-content-scroll" direction up stable 2500 max 0
 ```
 
 ---
@@ -179,41 +157,30 @@ the standard way to exhaust infinite-scroll feeds and chat history.
 
 ### `js`
 
-The escape hatch: evaluate JavaScript in the page. The script runs as the body
-of a function; YAML `args:` become its `arguments` array. The return value
-becomes the `as:` binding. Prefer dedicated actions; reach for `js` only when
-no action fits.
+The escape hatch: evaluate JavaScript in the page. `args` become its `arguments`
+array; the return value becomes the result. Prefer dedicated actions; reach for
+`js` only when no action fits.
 
 | Param | Notes |
 |---|---|
-| `fn?` | Name of a JS module under the bundle's `scripts/` (without `.js`). |
-| `file?` | Same as `fn` (alias). |
+| `fn?` | Name of a JS module under the bundle's `scripts/` (`.js` optional). |
 | `script?` | Inline JS source. |
 | `args?` | List passed to the page as `arguments`. |
-| `await?=false` | When `true`, the script runs as an async function and a returned Promise is awaited (chromedp `WithAwaitPromise`). |
+| `await?=false` | When `true`, the script runs async and a returned Promise is awaited. |
 
-Resolution order is `fn` → `file` → `script`; at least one is required.
+A module (`fn`) or inline `script` is required.
 
-```yaml
-- run: js
-  as: stats
-  params:
-    fn: "demo/page-stats"
-    args: ["{{section}}"]
-    await: false
+```capy
+js stats fn "demo/page-stats" args ["{{section}}"]
 ```
 
 Inline form:
 
-```yaml
-- run: js
-  as: count
-  params:
-    script: "return document.querySelectorAll('a').length;"
+```capy
+js count script "return document.querySelectorAll('a').length;"
 ```
 
-See [build-your-own-task.md §7](build-your-own-task.md#7-when-css-isnt-enough--use-a-js-module)
-for the module-vs-inline trade-off.
+See [Writing tasks](writing-tasks.md) for the module-vs-inline trade-off.
 
 ---
 
@@ -221,49 +188,44 @@ for the module-vs-inline trade-off.
 
 ### `extract`
 
-Turn rendered HTML into typed JSON via a CSS-selector field spec. The single
+Turn rendered HTML into typed JSON via a CSS-selector field spec — the
 most-used action.
 
-| Param | Notes |
+| Part | Notes |
 |---|---|
-| `from?=.` | Selector whose `outerHTML` is the extraction source. `.` = whole document. |
-| `selector` | The row(s) to harvest. |
-| `repeat?=false` | `false` → one object; `true` → one object per `selector` match (a list). |
-| `fields` | Map of `fieldName → field spec` (below). |
+| name | Where the result is stored. |
+| `from "SEL"` | The row(s) to harvest. |
+| `repeat` | Present → one object per match (a list); absent → one object. |
+| field lines | One per field (below), closed with `end`. |
 
-**Field spec:**
+**Field lines:**
 
-| Key | Notes |
+| Line | Captures |
 |---|---|
-| `kind?=text` | `text` (trimmed `textContent`), `attr`, `html` (inner HTML), or `const`. |
-| `selector?=.` | Selector *relative to the row*. `.` = the row element itself. |
-| `name` | Attribute name — required when `kind: attr`. |
-| `value` | The literal value — used when `kind: const` (tag every record). |
-| `transform?` | `int`, `long`, `trim`, `lower`, or `upper`, applied to the text/attr result. |
+| `name text "SEL"` | Trimmed text content. |
+| `name text "SEL" trim` | Text, explicitly trimmed. |
+| `name attr ATTR on "SEL"` | An HTML attribute (e.g. `href`). |
+| `name html "SEL"` | Inner HTML. |
+| `name const "VALUE"` | A literal constant tagged onto every record. |
 
-```yaml
-- run: extract
-  as: repos
-  params:
-    selector: "article.Box-row"
-    repeat: true
-    fields:
-      slug:        { kind: text, selector: "h2 a", transform: trim }
-      href:        { kind: attr, selector: "h2 a", name: "href" }
-      description: { kind: text, selector: "p" }
-      source:      { kind: const, value: "github-trending" }
-      summary:     { kind: html, selector: ".desc" }
+```capy
+extract repos from "article.Box-row" repeat
+    slug        text "h2 a" trim
+    href        attr href on "h2 a"
+    description text "p"
+    source      const "github-trending"
+    summary     html ".desc"
+end
 ```
 
-Output: with `repeat: true`, a list of objects; with `repeat: false`, one
-object.
+With `repeat`, the result is a list of objects; without it, one object.
 
 ---
 
 ## Rendering & capture
 
-All four actions accept `path:` (write to disk) and/or `as:` (return base64 /
-a `{path,size,bytesB64}` map). At least one is required. See
+All capture actions accept a `path` (write to disk) and/or a result name (return
+base64 / a `{path,size,bytesB64}` map). At least one is required. See
 [How results are stored](#how-results-are-stored).
 
 ### `screenshot`
@@ -273,71 +235,49 @@ a `{path,size,bytesB64}` map). At least one is required. See
 | `selector?=.` | `.` → viewport; a selector → that element only. |
 | `fullPage?=false` | Capture the whole scrollable page. |
 | `format?=png` | `png` or `jpeg`. |
-| `quality?` | JPEG quality 0–100 (jpeg only). |
-| `path?`, `as?` | Output sink(s). |
+| `quality?` | JPEG quality 0–100. |
 
-```yaml
-- run: screenshot
-  as: shot_b64
-  params: { fullPage: true, format: png }
+```capy
+screenshot shot_b64 fullPage true format png
 ```
 
 ### `pdf`
 
-Render the current page to PDF (CDP `Page.printToPDF`).
+Render the current page to PDF.
 
 | Param | Notes |
 |---|---|
-| `format?` | `A4`, `A3`, `Letter`, `Legal` — sets paper size. |
+| `format?` | `A4`, `A3`, `Letter`, `Legal`. |
 | `landscape?=false` | Orientation. |
 | `printBackground?=true` | Print background graphics. |
 | `scale?` | Render scale. |
-| `paperWidth?`/`paperHeight?` | In inches (override `format`). |
-| `marginTop/Bottom/Left/Right?` | In inches. |
 | `pageRanges?` | e.g. `"1-3,5"`. |
-| `displayHeaderFooter?`, `headerTemplate?`, `footerTemplate?` | Header/footer HTML. |
-| `path?`, `as?` | Output sink(s). |
 
-```yaml
-- run: pdf
-  params: { path: "/tmp/page.pdf", format: A4, printBackground: true }
+```capy
+pdf doc path "/tmp/page.pdf" format A4 printBackground true
 ```
 
 ### `html-to-pdf`
 
 Render an HTML string (or file) to PDF — no live page needed. Accepts all the
-`pdf` page options above.
+`pdf` options above.
 
 | Param | Notes |
 |---|---|
 | `html?` | Inline HTML source. |
 | `file?` | Path to an HTML file (used when `html` is absent). |
 | `css?` | CSS injected as a `<style>` prelude. |
-| *(plus all `pdf` options)* | |
-| `path?`, `as?` | Output sink(s). |
 
-```yaml
-- run: html-to-pdf
-  params:
-    file: "/tmp/report.html"
-    css: "body{font-family:sans-serif}"
-    format: A4
-    path: "/tmp/report.pdf"
+```capy
+html-to-pdf doc file "/tmp/report.html" css "body{font-family:sans-serif}" format A4 path "/tmp/report.pdf"
 ```
-
-For Markdown, build the HTML first with a CDN `marked.js` snippet via `js`.
 
 ### `snapshot`
 
 Capture an MHTML single-file archive (HTML + CSS + images inlined).
 
-| Param | Notes |
-|---|---|
-| `path?`, `as?` | Output sink(s). |
-
-```yaml
-- run: snapshot
-  params: { path: "/tmp/page.mhtml" }
+```capy
+snapshot snap path "/tmp/page.mhtml"
 ```
 
 ### `emulate`
@@ -353,12 +293,10 @@ window** until reset.
 | `colorScheme?` | `light` / `dark` / `no-preference`. |
 | `reset?=false` | Clear all overrides. |
 
-```yaml
-- run: emulate
-  params: { width: 390, height: 844, mobile: true, deviceScaleFactor: 3 }
+```capy
+emulate width 390 height 844 mobile true deviceScaleFactor 3
 # … later …
-- run: emulate
-  params: { reset: true }
+emulate reset true
 ```
 
 ---
@@ -367,41 +305,31 @@ window** until reset.
 
 ### `record`
 
-Screencast the page while the `do:` children run, then encode the frames to an
-animated GIF (pure Go) or MP4 (needs `ffmpeg` on `PATH`). A run that *fails* is
-still encoded and saved — that's exactly the run worth inspecting.
+Screencast the page while the block's children run, then encode to an animated
+GIF (pure Go) or MP4 (needs `ffmpeg`). A run that *fails* is still encoded and
+saved — exactly the run worth inspecting.
 
 | Param | Notes |
 |---|---|
 | `format?=gif` | `gif` or `mp4`. |
 | `fps?=5` | Frames per second. |
 | `quality?=80` | Encoder quality. |
-| `everyNthFrame?=2` | Sample every Nth screencast frame. |
 | `maxFrames?=300` | Hard cap on frames. |
 | `maxDurationMs?=30000` | Hard cap on wall-clock. |
 | `path?` | Write the media to disk. |
-| `as?` | Bind `{frames, durationMs, size, path|bytesB64}`. |
-| `do:` | The steps to record. |
 
-At least one of `path:` / `as:` is required.
+At least one of `path` / a result name is required.
 
-```yaml
-- run: record
-  as: clip
-  params:
-    format: gif
-    fps: 4
-    path: "/tmp/run.gif"
-  do:
-    - run: goto
-      params: { url: "https://example.com" }
-    - run: action
-      params: { action: click, selector: "#more" }
+```capy
+record clip format gif fps 4 path "/tmp/run.gif"
+    goto "https://example.com"
+    click "#more"
+end
 ```
 
-**Step-level recording.** Any step can carry `record: true` to screencast just
-that one step (a GIF at `$TMPDIR/webtasks-recordings/`); if the step fails, the
-error names the file. A debug aid, no `do:` needed.
+**Step-level recording.** Any step can carry `record` to screencast just that
+one step (a GIF under `$TMPDIR/webtasks-recordings/`); if the step fails, the
+error names the file. A debug aid, no block needed.
 
 ---
 
@@ -409,109 +337,82 @@ error names the file. A debug aid, no `do:` needed.
 
 ### `capture-network`
 
-Record request/response entries (HAR-ish) while the `do:` children run.
+Record request/response entries (HAR-ish) while the block's children run.
 
 | Param | Notes |
 |---|---|
 | `includeBodies?=false` | Capture response bodies. |
 | `maxBodyBytes?=65536` | Truncate bodies past this size. |
 | `urlFilter?` | Only record URLs containing this substring. |
-| `path?` | Write `{entries, count}` as JSON to disk. |
-| `as?` | Bind `{entries, count}`. |
-| `do:` | Steps during which traffic is captured. |
 
-```yaml
-- run: capture-network
-  as: har
-  params: { includeBodies: true, urlFilter: "/api/" }
-  do:
-    - run: goto
-      params: { url: "https://example.com/app" }
+```capy
+capture-network har includeBodies true urlFilter "/api/"
+    goto "https://example.com/app"
+end
 ```
 
 ### `console`
 
-Collect `console.*` messages while the `do:` children run.
+Collect `console.*` messages while the block's children run.
 
-| Param | Notes |
-|---|---|
-| `as` | The collected log list. |
-| `do:` | Steps during which logs are captured. |
-
-```yaml
-- run: console
-  as: logs
-  do:
-    - run: goto
-      params: { url: "https://example.com" }
+```capy
+console logs
+    goto "https://example.com"
+end
 ```
 
-### `wait-for-network-idle`
+### `wait-network-idle`
 
 Block until in-flight requests stay quiet.
 
 | Param | Notes |
 |---|---|
-| `idleMs?=500` | Required quiet window. |
-| `timeoutMs?=15000` | Give up after this long. |
+| `idle?=500` | Required quiet window (ms). |
+| `timeout?=15000` | Give up after this long. |
 | `maxInflight?=0` | Treat ≤ this many requests as "idle". |
 
-```yaml
-- run: wait-for-network-idle
-  params: { idleMs: 800, timeoutMs: 20000 }
+```capy
+wait-network-idle 800 timeout 20000
 ```
 
 ### `get-cookies`
 
-Read cookies.
+Read cookies into the result (`name, value, domain, path, expires, httpOnly,
+secure, sameSite`).
 
 | Param | Notes |
 |---|---|
 | `urls?` | List of URLs to scope to (omit for all). |
 | `path?` | Write the cookie list as JSON to disk. |
-| `as?` | Bind the cookie list (`name, value, domain, path, expires, httpOnly, secure, sameSite`). |
+
+```capy
+get-cookies jar
+```
 
 ### `set-cookies`
 
-Install cookies — useful for importing a session.
+Install cookies — useful for importing a session. Reads from inline cookies or a
+JSON file.
 
-| Param | Notes |
-|---|---|
-| `cookies?` | Inline list of cookie objects. |
-| `path?` | Read the cookie list from a JSON file (used when `cookies` is absent). |
-
-Bind result: `{count}`. Each cookie supports `name, value, domain, path, url,
-sameSite, expires, httpOnly, secure`.
-
-```yaml
-- run: set-cookies
-  params:
-    cookies:
-      - { name: "session", value: "{{token}}", domain: ".example.com", path: "/" }
+```capy
+set-cookies cookies [{ name: "session", value: "{{token}}", domain: ".example.com", path: "/" }]
 ```
 
-### `http-request`
+### `http-get` / `http-post`
 
-An outbound HTTP call with **no browser** involved.
+An outbound HTTP call with **no browser** involved. Result:
+`{status, headers, body, json?}` — `json` is present when the body parses as
+JSON.
 
 | Param | Notes |
 |---|---|
-| `url` | Target URL. |
-| `method?=GET` | Upper-cased. |
+| url | Target URL. |
 | `headers?` | Map of header → value. |
-| `body?` | String, or a map/list (marshalled to JSON; `Content-Type: application/json` added unless set). |
-| `timeoutMs?=30000` | Request timeout. |
-| `followRedirects?=true` | Set `false` to stop on the first redirect. |
+| `body?` | String, or a map/list (marshalled to JSON). |
+| `timeout?=30000` | Request timeout. |
 
-Bind result: `{status, headers, body, json?}` — `json` is present when the body
-parses as JSON.
-
-```yaml
-- run: http-request
-  as: api
-  params:
-    url: "https://hn.algolia.com/api/v1/search?query={{q}}"
-    method: GET
+```capy
+http-get api url "https://hn.algolia.com/api/v1/search?query={{q}}"
 ```
 
 ---
@@ -521,41 +422,35 @@ parses as JSON.
 ### `download-each`
 
 Native-click every match of `selector` in DOM order. Chrome saves each download
-into the per-window download directory; the action polls for the new file after
-each click and returns its path.
+to the per-window directory; the action polls for each new file and returns its
+path. Result: `[{path, basename}, …]`.
 
 | Param | Notes |
 |---|---|
-| `selector` | Elements to click. |
-| `timeoutPerFileMs?=30000` | Per-file poll timeout (empty path slot if it times out). |
+| selector | Elements to click. |
+| `timeout?=30000` | Per-file poll timeout. |
 
-Bind result: `[{path, basename}, …]`.
-
-```yaml
-- run: download-each
-  as: downloads
-  params: { selector: "a.download-link", timeoutPerFileMs: 30000 }
+```capy
+download-each downloads selector "a.download-link" timeout 30000
 ```
 
-The CDP `Browser.setDownloadBehavior` call is already wired into the window
-factory, so headless Chrome doesn't block downloads.
+The CDP download-behaviour call is already wired into the window factory, so
+headless Chrome doesn't block downloads.
 
 ### `save-captures-to-dir`
 
-For apps that decrypt blobs client-side and never trigger a real HTTP
-download (Concio, ProtonMail-style). After an in-page `URL.createObjectURL`
-hook has buffered captures into `window.__webtasks_captures`, this drains the
-ready ones to disk. Pending entries stay buffered for a future drain.
+For apps that decrypt blobs client-side and never trigger a real HTTP download
+(Concio, ProtonMail-style). After an in-page `URL.createObjectURL` hook has
+buffered captures, this drains the ready ones to disk. Result:
+`[{path, basename, size, mime, name, url}, …]`.
 
 | Param | Notes |
 |---|---|
-| `dir` | Server-side output directory. |
+| dir | Server-side output directory. |
 | `naming?={id}_{name}` | Filename template. Tokens: `{id} {name} {ext} {mime} {size} {ts}`. |
 
-Bind result: `[{path, basename, size, mime, name, url}, …]`.
-
-Full pattern (install hook → click files → wait → drain) is in
-[cookbook.md §7b](cookbook.md#7b-client-side-decryption--install-a-js-hook--drain).
+The full pattern (install hook → click files → wait → drain) is in
+[Recipes](cookbook.md).
 
 ---
 
@@ -563,66 +458,48 @@ Full pattern (install hook → click files → wait → drain) is in
 
 ### `for-each`
 
-Iterate a list, running the `do:` children once per item with a cloned bindings
-map.
+Iterate a list, running the block once per item with a cloned bindings map.
 
-| Param | Notes |
+| Part | Notes |
 |---|---|
-| `over` | The list. Use `over: "{{ref}}"` — a single-token ref resolves to the **raw** list (see [templating.md](templating.md)). |
+| `item in "{{ref}}"` | A single-token ref resolves to the **raw** list. |
 | `as?=item` | Name bound to the current item. `{{<as>_index}}` holds the 0-based index. |
-| `continueOnError?=false` | When `true`, a failing iteration emits an `error` event and the loop continues. |
-| `do:` | Steps run per item. |
+| `continueOnError?` | When set, a failing iteration emits an `error` event and the loop continues. |
 
-```yaml
-- run: for-each
-  params:
-    over: "{{chats}}"
-    as: chat
-    continueOnError: true
-  do:
-    - run: emit-event
-      params: { text: "Processing {{chat.peerName}} ({{chat_index}})" }
+```capy
+for-each chat in "{{chats}}" continueOnError true
+    emit status "Processing {{chat.peerName}} ({{chat_index}})"
+end
 ```
 
 ### `loop`
 
-A generic while-loop driven by a JS condition, re-evaluated each iteration.
+A generic loop driven by a JS condition, re-evaluated each iteration.
 
-| Param | Notes |
+| Part | Notes |
 |---|---|
-| `while?` | Inline JS expression — loop while truthy. |
-| `until?` | Inline JS expression — loop until truthy. |
-| `whileFn?` / `untilFn?` | A JS module name instead of an inline expression. |
-| `pauseMs?=1000` | Pause between iterations. |
-| `maxIterations?=1000` | Safety cap. |
-| `do:` | Body. `loop_index` is bound inside. |
+| `while js "EXPR"` | Loop while truthy. |
+| `until js "EXPR"` | Loop until truthy. |
+| `while fn "MODULE"` / `until fn "MODULE"` | A JS module instead of an inline expression. |
+| `pause?=1000` | Pause between iterations (ms). |
+| `max?=1000` | Safety cap. |
 
-A bare expression is auto-wrapped (`until: "x === 1"` works without `return`).
-`emit-event` in the body is how a long loop streams progress to an SSE caller.
+A bare expression is auto-wrapped. `emit` in the body streams progress to an SSE
+caller.
 
-```yaml
-- run: loop
-  params:
-    untilFn: "concio/all-chats-done"
-    pauseMs: 1500
-    maxIterations: 200
-  do:
-    - run: call
-      params: { task: "concio/watch" }
+```capy
+loop until fn "concio/all-chats-done" pause 1500 max 200
+    call "concio/watch"
+end
 ```
 
 ### `call`
 
 Run another registered task's flow **in the current window with the current
-bindings** — factor a reusable flow (e.g. a watch-loop calling a watch task).
+bindings** — factor a reusable flow.
 
-| Param | Notes |
-|---|---|
-| `task` | Name of a registered task. |
-
-```yaml
-- run: call
-  params: { task: "concio/watch" }
+```capy
+call "concio/watch"
 ```
 
 ### `return`
@@ -630,13 +507,8 @@ bindings** — factor a reusable flow (e.g. a watch-loop calling a watch task).
 Set the task's response payload to `value` alone and stop the remaining steps.
 Without a `return`, the full output map is returned.
 
-| Param | Notes |
-|---|---|
-| `value` | The sole response payload (any type). |
-
-```yaml
-- run: return
-  params: { value: "{{results}}" }
+```capy
+return "{{results}}"
 ```
 
 ---
@@ -645,17 +517,11 @@ Without a `return`, the full output map is returned.
 
 ### `set`
 
-Assign a literal or templated value to a binding/output. `value` renders to
+Assign a literal or templated value to a binding/output. The value renders to
 whatever type it is — string, list, map, number.
 
-| Param | Notes |
-|---|---|
-| `value` | The value to assign to `as:`. |
-
-```yaml
-- run: set
-  as: outDir
-  params: { value: "{{out}}/{{owner}}/chats" }
+```capy
+set outDir "{{out}}/{{owner}}/chats"
 ```
 
 ### `export`
@@ -664,19 +530,13 @@ Render a list/map of records into CSV, NDJSON, or a markdown table.
 
 | Param | Notes |
 |---|---|
-| `data` | The records (list of maps, or a single map). Usually `"{{ref}}"`. |
-| `format?=csv` | `csv`, `ndjson`, or `md-table` (aliases `md`, `markdown`). |
+| format | `csv`, `ndjson`, or `md` (markdown table). |
+| data | The records (list of maps, or a single map). Usually `"{{ref}}"`. |
 | `columns?` | Explicit column order. Defaults to the sorted union of keys. |
-| `path?`, `as?` | Output sink(s) — the rendered text. |
+| `path?` | Output path. |
 
-```yaml
-- run: export
-  as: csv
-  params:
-    data: "{{repos}}"
-    format: csv
-    columns: ["slug", "stars", "href"]
-    path: "/tmp/repos.csv"
+```capy
+export csv path "/tmp/repos.csv" data "{{repos}}" columns ["slug", "stars", "href"]
 ```
 
 ---
@@ -685,37 +545,29 @@ Render a list/map of records into CSV, NDJSON, or a markdown table.
 
 ### `read-file`
 
-Read a file into the `as:` binding (as a string).
+Read a file into the result (as a string).
 
 | Param | Notes |
 |---|---|
-| `path` | File to read. |
-| `optional?=false` | When `true`, a missing file yields `""` instead of erroring — handy for resume/dedup. |
+| path | File to read. |
+| `optional?=false` | When `true`, a missing file yields `""` instead of erroring. |
 
-```yaml
-- run: read-file
-  as: seen
-  params: { path: "{{out}}/state.json", optional: true }
+```capy
+read-file seen path "{{out}}/state.json" optional true
 ```
 
 ### `write-files`
 
-Store many files at once, creating parent directories as needed. The generic
-"store content + make dirs" backend.
+Store many files at once, creating parent directories as needed. Result:
+`{count, root, files: [{path, size}, …]}`.
 
 | Param | Notes |
 |---|---|
-| `root` | Base directory. Each file's `path` is joined under it (cleaned, no traversal). |
-| `files` | List of `{path, content}` or `{path, bytesB64}`. Usually `"{{ref}}"`. |
+| root | Base directory. Each file's `path` is joined under it (no traversal). |
+| files | List of `{path, content}` or `{path, bytesB64}`. Usually `"{{ref}}"`. |
 
-Bind result: `{count, root, files: [{path, size}, …]}`.
-
-```yaml
-- run: write-files
-  as: written
-  params:
-    root: "{{out}}"
-    files: "{{built.files}}"
+```capy
+write-files written root "{{out}}" files "{{built.files}}"
 ```
 
 ### `save-html`
@@ -725,58 +577,53 @@ Write an element's `outerHTML` to disk.
 | Param | Notes |
 |---|---|
 | `selector?=.` | `.` = whole document. |
-| `path` | Destination file. |
+| path | Destination file. |
 
-```yaml
-- run: save-html
-  params: { path: "/tmp/snapshot.html" }
+```capy
+save-html path "/tmp/snapshot.html"
 ```
 
 ---
 
 ## Events
 
-### `emit-event`
+### `emit`
 
 Emit a custom progress event — visible to SSE/WebSocket callers, a no-op for
 sync REST.
 
-| Param | Notes |
+| Part | Notes |
 |---|---|
-| `kind?=status` | Event kind (`status`, `progress`, or anything). |
-| `text` | Human-readable message (templated). |
+| kind | `status`, `progress`, or anything. |
+| text | Human-readable message (templated). |
 | `data?` | Arbitrary structured payload. |
 
-```yaml
-- run: emit-event
-  params:
-    kind: "progress"
-    text: "Harvested {{items.length}} items"
-    data: { fraction: 0.5 }
+```capy
+emit progress "Harvested {{items.length}} items" data { fraction: 0.5 }
 ```
 
-See [http-api.md](http-api.md) for the SSE event protocol.
+See the [HTTP API](http-api.md) for the SSE event protocol.
 
 ---
 
 ## How results are stored
 
-The `as:` and `path:` params interact consistently across actions:
+Result names and `path` interact consistently across actions:
 
-- **Data actions** (`extract`, `js`, `http-request`, `set`, `for-each` results,
-  `write-files`, …) store their result under `as:` in both the response `data`
-  and the live bindings. No `as:` → the result is discarded.
-- **Artifact actions** (`screenshot`, `pdf`, `html-to-pdf`, `snapshot`,
+- **Data actions** (`extract`, `js`, `http-get`, `set`, `for-each` results,
+  `write-files`, …) store their result under the given name in both the response
+  `data` and the live bindings. No name → the result is discarded.
+- **Capture actions** (`screenshot`, `pdf`, `html-to-pdf`, `snapshot`,
   `record`, `export`, `capture-network`, `get-cookies`) accept:
-  - `path:` only → written to disk, nothing bound.
-  - `as:` only → returned inline (base64 for binary, text for `export`).
-  - **both** → written to disk *and* bound as a
-    `{path, size, bytesB64}` map (binary) or the text (export).
-  - At least one of `path:` / `as:` is required, else the step errors.
-- **`return value:`** sets the reserved `__result__` binding. When present, the
-  HTTP response `data` is *that value alone*, not the full output map.
+    - `path` only → written to disk, nothing bound.
+    - a result name only → returned inline (base64 for binary, text for `export`).
+    - **both** → written to disk *and* bound as a `{path, size, bytesB64}` map
+      (binary) or the text (export).
+    - At least one is required, else the step errors.
+- **`return`** sets the reserved result. When present, the HTTP response `data`
+  is *that value alone*, not the full output map.
 
 A param whose entire value is a single `{{ref}}` token resolves to the **raw**
 bound value (list/map/number), not its stringified form — that's how
-`for-each over: "{{chats}}"` and `write-files files: "{{built.files}}"` receive
-real structured data. → [templating.md](templating.md)
+`for-each chat in "{{chats}}"` and `write-files files "{{built.files}}"` receive
+real structured data. → [Templating](templating.md)

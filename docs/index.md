@@ -1,247 +1,300 @@
 <div class="hero" markdown="1">
 
-# webtasks
+# Automate any browser, behind one API
 
-**Browser-automation as a service.** One Go binary, a folder of YAML tasks, and every task becomes a typed HTTP endpoint.
+**webtasks** runs Chrome on your server and turns each automation flow into a
+typed HTTP endpoint. Write a short `.webtask` recipe — *go here, wait, click,
+extract* — and call it with plain JSON from any language. No headless browser in
+your app, no Selenium grid to babysit.
 
-Ship selectors and Chrome internals on the server. Callers send JSON, get JSON back.
+<span class="hero-stat">1 static binary</span>
+<span class="hero-stat">REST + live SSE</span>
+<span class="hero-stat">38 ready examples</span>
+<span class="hero-stat">GPL-3.0</span>
 
-[:octicons-rocket-24: Get started](getting-started.md){ .md-button .md-button--primary }
-[:octicons-play-24: Browse demos](demos/index.md){ .md-button }
-[:octicons-code-24: Capy integration](capy-integration/index.md){ .md-button }
-[:octicons-mark-github-16: GitHub](https://github.com/olivierdevelops/webtasks){ .md-button }
+[:octicons-rocket-24: Install in 10 seconds](install.md){ .md-button .md-button--primary }
+[:octicons-play-24: See it in action](demos/index.md){ .md-button }
+[:octicons-mark-github-16: Star on GitHub](https://github.com/olivierdevelops/webtasks){ .md-button }
 
 </div>
 
 <div class="diagram" markdown="1">
 
-![Architecture overview](assets/architecture-flow.svg)
-
-</div>
-
-## What is webtasks?
-
-`webtasks` is a long-running **browser-automation server** built on
-[chromedp](https://github.com/chromedp/chromedp) (Chrome DevTools Protocol).
-You describe browser flows declaratively in YAML — `goto`, `wait-for`, `click`,
-`extract`, `download-each`, and dozens more — and the server exposes each task
-as `POST /tasks/<name>`.
-
-| Traditional stack | webtasks |
-|---|---|
-| JVM + chromedriver matched to Chrome | Single ~17 MB Go binary |
-| Config baked into the jar | Config bundle loaded at runtime (dir or zip) |
-| WebDriver download hacks | Native CDP download control |
-| One-off scripts | Reusable HTTP API with schemas |
-
-<div class="feature-pills" markdown="1">
-
-<span class="feature-pill">REST + SSE</span>
-<span class="feature-pill">Hot-reload YAML</span>
-<span class="feature-pill">Window pools</span>
-<span class="feature-pill">PDF & screenshots</span>
-<span class="feature-pill">GIF recording</span>
-<span class="feature-pill">Network capture</span>
-<span class="feature-pill">JS modules</span>
-<span class="feature-pill">Secrets</span>
+![How webtasks fits together](assets/architecture-flow.svg)
 
 </div>
 
 ---
 
-## 30-second quick start
+## The problem it solves
 
-```bash
-# 1. Build
-go build -o build/webtasks ./cmd/webtasks
+Browser automation usually means bolting a headless browser, a matching driver,
+and brittle scripts into every service that needs it. That's heavy to run, hard
+to secure, and a nightmare to keep in sync across a fleet.
 
-# 2. Start (demo bundle included in the repo)
-WEBTASKS_BUNDLE=$(pwd)/demo ./build/webtasks &
+webtasks flips it around: **one automation server**, called over HTTP. Selectors,
+login flows, and Chrome internals live in one place. Everything else just sends
+JSON and gets JSON back.
 
-# 3. Run a task
-curl -s -X POST http://127.0.0.1:8765/tasks/basics/title \
-  -H 'Content-Type: application/json' -d '{}' | python3 -m json.tool
+| The old way | With webtasks |
+|---|---|
+| A headless browser + driver in every service | One server, called over HTTP from anywhere |
+| Selenium grid / chromedriver version matching | A single static binary talks to Chrome via CDP |
+| Selectors & logins copy-pasted across repos | Recipes live in one bundle, reused everywhere |
+| Rebuild & redeploy to change a flow | Edit a `.webtask` file — hot-reloads on next call |
+| Brittle, undocumented scripts | A typed HTTP API with input/output schemas |
+
+---
+
+## A task is a recipe
+
+Drop this in `tasks/crawl/hackernews-top.webtask` and it instantly becomes
+`POST /tasks/crawl/hackernews-top`:
+
+```capy
+task "crawl/hackernews-top"
+    pool default
+    timeout 20000
+    transport rest
+
+    goto "https://news.ycombinator.com"
+    wait until "tr.athing" timeout 10000
+
+    extract stories from "tr.athing" repeat
+        title text ".titleline > a"
+        url   attr href on ".titleline > a"
+    end
+end
 ```
 
-Expected response:
+Call it from anything that speaks HTTP:
 
-```json
-{
-  "ok": true,
-  "data": {
-    "page": {
-      "title": "Example Domain",
-      "heading": "Example Domain",
-      "body": "This domain is for use in documentation examples …"
-    }
-  }
-}
-```
-
-!!! tip "Using the `executor` helper"
-    If you have [executor](https://github.com/olivierdevelops/webtasks/blob/main/commands.yaml) wired up locally:
+=== "curl"
 
     ```bash
-    executor build
-    executor server &
-    executor call basics/title
-    executor call crawl/hackernews-top
+    curl -s -X POST localhost:8765/tasks/crawl/hackernews-top -d '{}'
     ```
+
+=== "Python"
+
+    ```python
+    import requests
+    r = requests.post("http://localhost:8765/tasks/crawl/hackernews-top", json={})
+    print(r.json()["data"]["stories"])
+    ```
+
+=== "JavaScript"
+
+    ```js
+    const r = await fetch("http://localhost:8765/tasks/crawl/hackernews-top", {
+      method: "POST", body: "{}",
+    });
+    console.log((await r.json()).data.stories);
+    ```
+
+```json
+{ "ok": true, "data": { "stories": [ { "title": "Show HN: …", "url": "https://…" } ] } }
+```
 
 ---
 
-## How it fits together
+## What you can build
+
+<div class="grid cards" markdown>
+
+- :material-table-search:{ .lg .middle } **Scrape & extract**
+
+    ---
+
+    Pull structured JSON from any page or list with CSS-selector field specs.
+    Real sites, real data.
+
+- :material-cursor-default-click-outline:{ .lg .middle } **Drive UIs**
+
+    ---
+
+    Fill forms, click, type, scroll infinite feeds, and wait for dynamic SPA
+    state — with native, trusted input events.
+
+- :material-file-pdf-box:{ .lg .middle } **Capture artifacts**
+
+    ---
+
+    Screenshots, full-page PDFs, MHTML archives, and animated GIF / MP4
+    recordings of a whole flow.
+
+- :material-radio-tower:{ .lg .middle } **Stream progress**
+
+    ---
+
+    Long jobs emit live `status` and `progress` events over Server-Sent Events
+    — perfect for progress bars.
+
+- :material-lan-connect:{ .lg .middle } **Inspect the network**
+
+    ---
+
+    HAR-style request capture, cookie read/write, console logs, and
+    network-idle waits for flaky SPAs.
+
+- :material-key-variant:{ .lg .middle } **Stay logged in**
+
+    ---
+
+    Persistent Chrome profiles + declared secrets keep authenticated sessions
+    alive across restarts.
+
+</div>
+
+---
+
+## Built for developers
+
+<div class="grid cards" markdown>
+
+- :material-language-typescript:{ .lg .middle } **Language-agnostic**
+
+    ---
+
+    It's just HTTP + JSON. Call tasks from Python, JS, Go, shell — anything.
+    `GET /tasks` returns the input/output schema for every endpoint.
+
+- :material-file-document-edit-outline:{ .lg .middle } **Readable recipes**
+
+    ---
+
+    The `.webtask` language reads like a checklist, not a config file. No
+    indentation traps, no boilerplate.
+
+- :material-reload:{ .lg .middle } **Instant feedback**
+
+    ---
+
+    Hot-reload re-reads recipes on every request. Edit, re-call, done — no
+    restart, no rebuild.
+
+- :material-test-tube:{ .lg .middle } **38 examples to copy**
+
+    ---
+
+    A demo bundle spanning scraping, forms, rendering, recording, and a
+    real-world logged-in scrape.
+
+</div>
+
+[:octicons-arrow-right-24: Write your first task](writing-tasks.md){ .md-button }
+
+---
+
+## Ready for production
+
+<div class="grid cards" markdown>
+
+- :material-package-variant-closed:{ .lg .middle } **One binary, zero runtime deps**
+
+    ---
+
+    A single static binary — no JVM, no chromedriver, no Selenium server. Ship
+    it plus a zipped bundle and run anywhere Chrome is installed.
+
+- :material-server-security:{ .lg .middle } **Isolated window pools**
+
+    ---
+
+    Concurrency is bounded per pool; a window is never shared by two runs at
+    once. Crashed tabs are detected and replaced automatically.
+
+- :material-shield-lock-outline:{ .lg .middle } **Secrets, never inline**
+
+    ---
+
+    Credentials are declared in the bundle and resolved at startup from env,
+    flags, or a prompt — surfaced to recipes as `{{TOKEN}}`, never hard-coded.
+
+- :material-security:{ .lg .middle } **Hardened by default**
+
+    ---
+
+    Static file mounts are path-traversal–safe; per-call deadlines stop runaway
+    runs; the server binds to localhost unless you opt out.
+
+- :material-heart-pulse:{ .lg .middle } **Observable**
+
+    ---
+
+    `GET /health` reports live pool occupancy and task counts; SSE streams every
+    step as it happens.
+
+- :material-cloud-upload-outline:{ .lg .middle } **Portable bundles**
+
+    ---
+
+    Config is a directory or `.zip`, loaded at runtime. The same binary serves
+    any deployment — point it at a different bundle to change behaviour.
+
+</div>
+
+[:octicons-arrow-right-24: Deployment guide](deploy.md){ .md-button }
+
+---
+
+## How a request flows
 
 ```mermaid
 flowchart LR
-    Client["HTTP client\ncurl · Python · JS"]
-    Server["webtasks\nGo server"]
-    Bundle["Config bundle\ntasks/ · scripts/"]
-    Chrome["Chrome pool\nchromedp"]
-    Web["Target websites"]
+    Client["HTTP client<br/>curl · Python · JS"]
+    Server["webtasks server"]
+    Pool["window pool<br/>(bounded concurrency)"]
+    Chrome["Chrome window<br/>chromedp / CDP"]
+    Web["target site"]
 
-    Client -->|"POST /tasks/name"| Server
-    Server --> Bundle
-    Server --> Chrome
+    Client -->|"POST /tasks/name + JSON"| Server
+    Server -->|"lease"| Pool
+    Pool --> Chrome
     Chrome --> Web
-    Server -->|"JSON or SSE"| Client
+    Server -->|"JSON or live SSE"| Client
 ```
 
-<div class="diagram" markdown="1">
+Each `.webtask` file is one endpoint. A run leases a Chrome window for its whole
+duration and releases it at the end — so concurrency, sessions, and crash
+recovery are all handled for you.
 
-![Config bundle layout](assets/bundle-layout.svg)
-
-</div>
-
-Each YAML file in `tasks/` defines one endpoint. The server **hot-reloads**
-on every request — edit a task, call it again, no restart.
+[:octicons-arrow-right-24: How it works in depth](how-it-works.md){ .md-button }
 
 ---
 
-## 38 runnable demos
+## Get started
 
-The [`demo/`](https://github.com/olivierdevelops/webtasks/tree/main/demo) bundle
-ships **38 tasks** across 11 categories. Every demo is short enough to read
-end-to-end and exercises a different engine feature.
+<div class="grid cards" markdown>
 
-<div class="demo-grid" markdown="1">
+- :octicons-download-24:{ .lg .middle } **[Install](install.md)**
 
-<div class="demo-card" markdown="1">
+    ---
 
-### [Basics](demos/basics.md)
-`basics/title` · `screenshot` · `inline-js`
+    `curl … | sh`, start the server, run your first task in under a minute.
 
-Minimal flows — the building blocks.
+- :octicons-book-24:{ .lg .middle } **[Writing tasks](writing-tasks.md)**
 
-</div>
+    ---
 
-<div class="demo-card" markdown="1">
+    The complete `.webtask` language reference, with a build-from-scratch
+    walkthrough.
 
-### [Crawl](demos/crawl.md)
-HN · GitHub trending · Wikipedia · papers
+- :octicons-beaker-24:{ .lg .middle } **[Examples](demos/index.md)**
 
-List extraction from real sites.
+    ---
 
-</div>
+    38 runnable recipes across 11 categories — copy, tweak, ship.
 
-<div class="demo-card" markdown="1">
+- :octicons-server-24:{ .lg .middle } **[Deployment](deploy.md)**
 
-### [Search](demos/search.md)
-DuckDuckGo · HN Algolia API
+    ---
 
-Input-driven URLs and API calls.
+    Pools, secrets, static mounts, and packaging a bundle for production.
 
 </div>
-
-<div class="demo-card" markdown="1">
-
-### [Interaction](demos/interaction.md)
-Form fill · infinite scroll
-
-Clicks, typing, scrolling.
-
-</div>
-
-<div class="demo-card" markdown="1">
-
-### [Streaming](demos/streaming.md)
-`streaming/progress`
-
-Live SSE progress events.
-
-</div>
-
-<div class="demo-card" markdown="1">
-
-### [Rendering](demos/rendering.md)
-PDF · screenshots · MHTML · dark mode
-
-Capture pages as files.
-
-</div>
-
-<div class="demo-card" markdown="1">
-
-### [Network](demos/network.md)
-HAR capture · cookies · console
-
-Observe browser internals.
-
-</div>
-
-<div class="demo-card" markdown="1">
-
-### [Control flow](demos/control.md)
-`call` · `loop` · `await-js`
-
-Compose and branch tasks.
-
-</div>
-
-<div class="demo-card" markdown="1">
-
-### [Recording](demos/recording.md)
-Animated GIF / MP4 screencasts
-
-Record flows visually.
-
-</div>
-
-<div class="demo-card" markdown="1">
-
-### [Concio](demos/concio.md)
-Real-world logged-in scrape
-
-Production-grade bundle example.
-
-</div>
-
-</div>
-
-[:octicons-arrow-right-24: Full demo catalogue](demos/index.md)
 
 ---
 
-## Documentation map
-
-| I want to… | Read |
-|---|---|
-| Install and run my first task | [Getting Started](getting-started.md) |
-| Copy-paste working examples | [Demos](demos/index.md) |
-| Author a task from scratch | [Build your own task](build-your-own-task.md) |
-| Look up recipes | [Cookbook](cookbook.md) |
-| See every `run:` keyword | [Actions reference](actions.md) |
-| Integrate via HTTP | [HTTP API](http-api.md) |
-| Deploy to production | [Bundle](bundle.md) · [Configuration](configuration.md) |
-| Replace YAML with Capy DSL | [Capy integration guide](capy-integration/index.md) |
-| Extend the engine | [Architecture](architecture.md) · Cookbook §12 |
-
----
-
-## License
-
-webtasks is released under the **GNU General Public License v3.0** — a
-copyleft license. You may use, modify, and distribute it, but derivative
-works must also be open source under GPL-compatible terms.
-
-See [License](license.md) for details.
+webtasks is free software under the **GNU General Public License v3.0**.
+See [License](license.md).

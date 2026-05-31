@@ -9,45 +9,36 @@ Capture a browser flow as an animated GIF (or MP4 with ffmpeg).
 Navigate to a page, scroll it, and save an animated GIF of the action.
 
 ```bash
-executor call recording/record
-executor call recording/record '{"url":"https://quotes.toscrape.com","path":"/tmp/demo.gif"}'
+curl -s -X POST localhost:8765/tasks/recording/record -d '{}'
+curl -s -X POST localhost:8765/tasks/recording/record \
+  -d '{"url":"https://quotes.toscrape.com","path":"/tmp/demo.gif"}'
 ```
 
-=== "Task YAML"
+=== "Recipe (.webtask)"
 
-    ```yaml
-    name: "recording/record"
-    input:
-      url:    { type: string, default: "https://quotes.toscrape.com" }
-      path:   { type: string, default: "/tmp/webtasks-demo/flow.gif" }
-      format: { type: string, default: "gif", doc: "gif or mp4" }
+    ```capy
+    task "recording/record"
+        pool default
+        timeout 60000
+        transport rest
+        input url    string default "https://quotes.toscrape.com"
+        input path   string default "/tmp/webtasks-demo/flow.gif"
+        input format string default "gif" doc "gif or mp4"
 
-    flow:
-      - run: goto
-        params: { url: "{{url}}" }
-      - run: record
-        as: clip
-        params:
-          format: "{{format}}"
-          path: "{{path}}"
-          fps: 4
-        do:
-          - run: scroll-until-stable
-            params:
-              selector: "body"
-              direction: down
-              stableMs: 800
-              maxIterations: 8
-          - run: wait
-            params: { duration: "500" }
+        goto "{{url}}"
+        record clip format "{{format}}" path "{{path}}" fps 4
+            scroll until stable "body" direction down stable 800 max 8
+            wait 500
+        end
+    end
     ```
 
 ```mermaid
 flowchart LR
-    Goto[goto page] --> Rec["record (fps: 4)"]
-    Rec --> Scroll[scroll-until-stable]
+    Goto[goto page] --> Rec["record (fps 4)"]
+    Rec --> Scroll[scroll until stable]
     Scroll --> Wait[wait 500ms]
-    Wait --> GIF["GIF at path\n+ base64 in data.clip"]
+    Wait --> GIF["GIF at path<br/>+ base64 in data.clip"]
 ```
 
 ---
@@ -60,7 +51,7 @@ flowchart LR
 | **mp4** | `ffmpeg` on PATH | Higher quality, video pipelines |
 
 ```bash
-executor call recording/record '{"format":"mp4","path":"/tmp/demo.mp4"}'
+curl -s -X POST localhost:8765/tasks/recording/record -d '{"format":"mp4","path":"/tmp/demo.mp4"}'
 ```
 
 ---
@@ -72,9 +63,9 @@ executor call recording/record '{"format":"mp4","path":"/tmp/demo.mp4"}'
 | `fps` | 4 | Frames per second |
 | `path` | (required) | Server-side output path |
 | `format` | `gif` | `gif` or `mp4` |
-| `do:` | — | Steps to perform while recording |
+| block body | — | Steps to perform while recording |
 
-The `do:` block defines what happens **during** the recording window — only
+The block body defines what happens **during** the recording window — only
 those steps appear in the animation.
 
 ---

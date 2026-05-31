@@ -10,32 +10,27 @@ screenshot, and inline JavaScript.
 The smallest possible task — open example.com and return the page title.
 
 ```bash
-executor call basics/title
+curl -s -X POST localhost:8765/tasks/basics/title -d '{}'
 ```
 
-=== "Task YAML"
+=== "Recipe (.webtask)"
 
-    ```yaml
-    name: "basics/title"
-    poolTag: "default"
-    transports: ["rest"]
-    timeoutMs: 15000
+    ```capy
+    task "basics/title"
+        pool default
+        timeout 15000
+        transport rest
 
-    flow:
-      - status: "Visiting example.com"
-        run: goto
-        params: { url: "https://example.com" }
+        status "Visiting example.com"
+        goto "https://example.com"
 
-      - status: "Reading title and heading"
-        run: extract
-        as: page
-        params:
-          selector: "html"
-          repeat: false
-          fields:
-            title:   { kind: text, selector: "title" }
-            heading: { kind: text, selector: "h1" }
-            body:    { kind: text, selector: "p" }
+        status "Reading title and heading"
+        extract page from "html"
+            title   text "title"
+            heading text "h1"
+            body    text "p"
+        end
+    end
     ```
 
 === "Response"
@@ -53,7 +48,7 @@ executor call basics/title
     }
     ```
 
-**Concepts:** `goto`, `extract`, `as:` naming, `status:` lines.
+**Concepts:** `goto`, `extract`, named results, `status` lines.
 
 ---
 
@@ -62,24 +57,23 @@ executor call basics/title
 Capture a viewport PNG of any URL. Returns base64 under `data.png_b64`.
 
 ```bash
-executor call basics/screenshot
-executor call basics/screenshot '{"url":"https://news.ycombinator.com"}'
+curl -s -X POST localhost:8765/tasks/basics/screenshot -d '{}'
+curl -s -X POST localhost:8765/tasks/basics/screenshot -d '{"url":"https://news.ycombinator.com"}'
 ```
 
-=== "Task YAML"
+=== "Recipe (.webtask)"
 
-    ```yaml
-    input:
-      url: { type: string, required: false, default: "https://example.com" }
+    ```capy
+    task "basics/screenshot"
+        pool default
+        timeout 15000
+        transport rest
+        input url string default "https://example.com"
 
-    flow:
-      - run: goto
-        params: { url: "{{url}}" }
-      - run: wait-for
-        params: { selector: "body", timeoutMs: 10000 }
-      - run: screenshot
-        as: png_b64
-        params: { selector: "." }
+        goto "{{url}}"
+        wait until "body" timeout 10000
+        screenshot png_b64 selector "."
+    end
     ```
 
 === "Save to disk"
@@ -105,13 +99,13 @@ executor call basics/screenshot '{"url":"https://news.ycombinator.com"}'
 Run arbitrary JavaScript inline with templated arguments.
 
 ```bash
-executor call basics/inline-js
+curl -s -X POST localhost:8765/tasks/basics/inline-js -d '{}'
 ```
 
-The task uses a `script:` block to read `document.title` and return structured
+The task uses an inline `js` step to read `document.title` and return structured
 data without a separate `.js` file.
 
-**Concepts:** `run: js`, inline `script:` blocks, returning values from JS.
+**Concepts:** `js`, inline scripts, returning values from JS.
 
 See also: [JS modules](js-modules.md) for reusable scripts in `scripts/`.
 
@@ -122,10 +116,10 @@ See also: [JS modules](js-modules.md) for reusable scripts in `scripts/`.
 Dump the fully rendered HTML to a server-side path.
 
 ```bash
-executor call basics/save-html
+curl -s -X POST localhost:8765/tasks/basics/save-html -d '{}'
 ```
 
-**Concepts:** `write-files`, server-side file output, rendered DOM vs source.
+**Concepts:** writing files, server-side output, rendered DOM vs source.
 
 ---
 
@@ -134,29 +128,25 @@ executor call basics/save-html
 Navigate, wait for an element, click it, then extract the result.
 
 ```bash
-executor call basics/wait-then-click
+curl -s -X POST localhost:8765/tasks/basics/wait-then-click -d '{}'
 ```
 
 === "Flow pattern"
 
-    ```yaml
-    flow:
-      - run: goto
-        params: { url: "…" }
-      - run: wait-for
-        params: { selector: "button.submit", timeoutMs: 10000 }
-      - run: action
-        params: { action: click, selector: "button.submit" }
-      - run: extract
-        as: result
-        params: { … }
+    ```capy
+    goto "https://example.com"
+    wait until "button.submit" timeout 10000
+    click "button.submit"
+    extract result from "html"
+        message text ".result"
+    end
     ```
 
-**Concepts:** `wait-for`, `action(click)`, chaining steps.
+**Concepts:** `wait until`, `click`, chaining steps.
 
 ---
 
 ## What's next?
 
 - [Crawl demos](crawl.md) — extract lists from real websites
-- [Build your own task](../build-your-own-task.md) — author from scratch
+- [Writing tasks](../writing-tasks.md) — author from scratch

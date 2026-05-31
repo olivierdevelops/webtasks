@@ -10,103 +10,91 @@ infinite feeds.
 Fill the httpbin.org POST form and return what the server echoed back.
 
 ```bash
-executor call interaction/form-fill
-executor call interaction/form-fill '{"custname":"Ada","custtel":"555","custemail":"a@b","comments":"hi"}'
+curl -s -X POST localhost:8765/tasks/interaction/form-fill -d '{}'
+curl -s -X POST localhost:8765/tasks/interaction/form-fill \
+  -d '{"custname":"Ada","custtel":"555","custemail":"a@b","comments":"hi"}'
 ```
 
-=== "Task YAML (abbreviated)"
+=== "Recipe (.webtask)"
 
-    ```yaml
-    input:
-      custname:  { type: string, required: false, default: "Ada Lovelace" }
-      custtel:   { type: string, required: false, default: "555-0100" }
-      custemail: { type: string, required: false, default: "ada@example.com" }
-      comments:  { type: string, required: false, default: "hi from webtasks" }
+    ```capy
+    task "interaction/form-fill"
+        pool default
+        timeout 30000
+        transport rest
+        input custname  string default "Ada Lovelace"
+        input custtel   string default "555-0100"
+        input custemail string default "ada@example.com"
+        input comments  string default "hi from webtasks"
 
-    flow:
-      - run: goto
-        params: { url: "https://httpbin.org/forms/post" }
-      - run: wait-for
-        params: { selector: "form input[name='custname']", timeoutMs: 10000 }
-      - run: sendkeys
-        params: { selector: "input[name='custname']",  keys: "{{custname}}" }
-      - run: sendkeys
-        params: { selector: "input[name='custtel']",   keys: "{{custtel}}" }
-      - run: sendkeys
-        params: { selector: "input[name='custemail']", keys: "{{custemail}}" }
-      - run: sendkeys
-        params: { selector: "textarea[name='comments']", keys: "{{comments}}" }
-      - run: action
-        params: { action: click, selector: "form button" }
-      - run: wait-for
-        params: { selector: "pre", timeoutMs: 10000 }
-      - run: extract
-        as: echoed
-        params:
-          selector: "html"
-          repeat: false
-          fields:
-            body: { kind: text, selector: "pre" }
+        goto "https://httpbin.org/forms/post"
+        wait until "form input[name='custname']" timeout 10000
+        sendkeys "input[name='custname']"   keys "{{custname}}"
+        sendkeys "input[name='custtel']"    keys "{{custtel}}"
+        sendkeys "input[name='custemail']"  keys "{{custemail}}"
+        sendkeys "textarea[name='comments']" keys "{{comments}}"
+        click "form button"
+        wait until "pre" timeout 10000
+        extract echoed from "html"
+            body text "pre"
+        end
+    end
     ```
 
 ```mermaid
 flowchart TD
-    A[goto form page] --> B[wait-for inputs]
+    A[goto form page] --> B[wait until inputs]
     B --> C[sendkeys × 4 fields]
     C --> D[click submit]
-    D --> E[wait-for response]
+    D --> E[wait until response]
     E --> F[extract echoed JSON]
 ```
 
-**Concepts:** `sendkeys`, `action(click)`, form selectors by `name=`, waiting
-for navigation results.
+**Concepts:** `sendkeys`, `click`, form selectors by `name=`, waiting for
+results.
 
 !!! tip "Debugging selectors"
-    Run with `WEBTASKS_HEADLESS=false` and watch Chrome fill the form live.
+    Run the server with `WEBTASKS_HEADLESS=false` and watch Chrome fill the form
+    live.
 
 ---
 
 ## scroll-feed
 
-Scroll an infinite-scroll demo page until the DOM stabilizes.
+Scroll an infinite-scroll page until the DOM stabilizes.
 
 ```bash
-executor call interaction/scroll-feed
+curl -s -X POST localhost:8765/tasks/interaction/scroll-feed -d '{}'
 ```
 
 === "Key step"
 
-    ```yaml
-    - run: scroll-until-stable
-      params:
-        selector: "body"
-        direction: down
-        stableMs: 800
-        maxIterations: 20
+    ```capy
+    scroll until stable "body" direction down stable 800 max 20
     ```
 
-**Concepts:** `scroll-until-stable`, loading lazy content, chat-history patterns.
+**Concepts:** `scroll until stable`, loading lazy content, chat-history patterns.
 
 This is the same primitive used in production bundles like
 [Concio → get-messages](concio.md) to load full chat history.
 
 ---
 
-## Action reference (interaction)
+## Interaction actions
 
 | Action | Purpose |
 |---|---|
 | `sendkeys` | Type into an input (`selector` + `keys`) |
-| `action` | `click`, `double-click`, `hover`, etc. |
-| `wait-for` | Block until selector appears |
-| `scroll-until-stable` | Scroll until DOM stops changing |
-| `wait` | Fixed delay (`duration` in ms) |
+| `click` | Click an element |
+| `wait until` | Block until a selector appears |
+| `scroll until stable` | Scroll until the DOM stops changing |
+| `wait` | Fixed delay (milliseconds) |
 
-Full list: [Actions reference](../actions.md)
+Full list: [Actions reference](../actions.md).
 
 ---
 
 ## What's next?
 
-- [Recording](recording.md) — capture scroll as animated GIF
+- [Recording](recording.md) — capture scroll as an animated GIF
 - [Concio](concio.md) — scroll-to-top on a real chat app

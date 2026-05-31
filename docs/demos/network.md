@@ -10,37 +10,33 @@ and network idle detection.
 Record every network request while a page loads — returns a HAR-ish summary.
 
 ```bash
-executor call network/capture
-executor call network/capture '{"url":"https://quotes.toscrape.com"}'
+curl -s -X POST localhost:8765/tasks/network/capture -d '{}'
+curl -s -X POST localhost:8765/tasks/network/capture -d '{"url":"https://quotes.toscrape.com"}'
 ```
 
-=== "Task YAML"
+=== "Recipe (.webtask)"
 
-    ```yaml
-    flow:
-      - run: capture-network
-        as: har
-        do:
-          - run: goto
-            params: { url: "{{url}}" }
-          - run: wait-for-network-idle
-            params: { idleMs: 800, timeoutMs: 20000 }
+    ```capy
+    capture-network har
+        goto "{{url}}"
+        wait-network-idle 800 timeout 20000
+    end
     ```
 
 ```mermaid
 flowchart TD
     Start[capture-network starts recording]
-    Do["do: sub-steps run"]
+    Body["block steps run"]
     Goto[goto URL]
-    Idle[wait-for-network-idle]
+    Idle[wait-network-idle]
     Stop[return HAR summary under data.har]
 
-    Start --> Do
-    Do --> Goto --> Idle
-    Do --> Stop
+    Start --> Body
+    Body --> Goto --> Idle
+    Body --> Stop
 ```
 
-**Concepts:** `capture-network` wrapper with `do:` block, HAR-style output.
+**Concepts:** `capture-network` block, HAR-style output.
 
 Use this to discover XHR endpoints before switching to [Backend → http-get](backend.md).
 
@@ -51,13 +47,13 @@ Use this to discover XHR endpoints before switching to [Backend → http-get](ba
 Read and write browser cookies for the current session.
 
 ```bash
-executor call network/cookies
+curl -s -X POST localhost:8765/tasks/network/cookies -d '{}'
 ```
 
 **Concepts:** session persistence, cookie jar inspection, auth debugging.
 
-Pairs with [Pools → persistent profiles](../pools.md) for login sessions that
-survive restarts.
+Pairs with [persistent profiles](../deploy.md#persistent-profiles) for login
+sessions that survive restarts.
 
 ---
 
@@ -66,7 +62,7 @@ survive restarts.
 Capture browser console log lines during a flow.
 
 ```bash
-executor call network/console
+curl -s -X POST localhost:8765/tasks/network/console -d '{}'
 ```
 
 **Concepts:** `capture-console`, debugging JS errors on target pages.
@@ -78,16 +74,14 @@ executor call network/console
 Wait until network activity settles — useful before extraction on SPAs.
 
 ```bash
-executor call network/idle
+curl -s -X POST localhost:8765/tasks/network/idle -d '{}'
 ```
 
-=== "Key params"
+=== "Key step"
 
-    ```yaml
-    - run: wait-for-network-idle
-      params:
-        idleMs: 800        # ms of silence required
-        timeoutMs: 20000   # give up after this
+    ```capy
+    wait-network-idle 800 timeout 20000
+    # 800 ms of network silence required; give up after 20 s
     ```
 
 **Concepts:** SPA loading patterns, when `wait-for` selector isn't enough.
@@ -106,4 +100,4 @@ executor call network/idle
 ## What's next?
 
 - [Backend → http-get](backend.md) — call discovered APIs directly
-- [Secrets](../secrets.md) — auth tokens for authenticated requests
+- [Secrets](../deploy.md#secrets) — auth tokens for authenticated requests

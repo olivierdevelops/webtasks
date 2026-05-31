@@ -7,15 +7,11 @@ inline `script:` blocks.
 
 ## Why JS modules?
 
-Inline `script:` blocks get unreadable past a few lines. Drop scripts into
-`bundle/scripts/` and reference them with `fn:`:
+Inline scripts get unreadable past a few lines. Drop scripts into
+`bundle/scripts/` and reference them with `fn`:
 
-```yaml
-- run: js
-  as: result
-  params:
-    fn: "demo/page-stats.js"
-    args: ["{{url}}"]
+```capy
+js result fn "demo/page-stats.js" args ["{{url}}"]
 ```
 
 The server loads `scripts/demo/page-stats.js` from the bundle and executes it
@@ -23,12 +19,12 @@ in the browser context.
 
 ```mermaid
 flowchart LR
-    YAML["Task YAML\nfn: demo/foo.js"]
+    Recipe["recipe<br/>fn 'demo/foo.js'"]
     Bundle["scripts/demo/foo.js"]
     Chrome["Chrome V8"]
     Result["JSON result"]
 
-    YAML --> Bundle --> Chrome --> Result
+    Recipe --> Bundle --> Chrome --> Result
 ```
 
 ---
@@ -38,11 +34,12 @@ flowchart LR
 Extract Open Graph and meta tags from any page.
 
 ```bash
-executor call js-modules/meta-tags
-executor call js-modules/meta-tags '{"url":"https://github.com/chromedp/chromedp"}'
+curl -s -X POST localhost:8765/tasks/js-modules/meta-tags -d '{}'
+curl -s -X POST localhost:8765/tasks/js-modules/meta-tags \
+  -d '{"url":"https://github.com/chromedp/chromedp"}'
 ```
 
-**Script:** `demo/scripts/demo/get-meta-tags.js`
+**Script:** `scripts/demo/get-meta-tags.js`
 
 **Concepts:** one task ↔ one JS module, passing the current page DOM to JS.
 
@@ -53,10 +50,10 @@ executor call js-modules/meta-tags '{"url":"https://github.com/chromedp/chromedp
 DOM summary helper — counts elements, links, images, etc.
 
 ```bash
-executor call js-modules/page-stats
+curl -s -X POST localhost:8765/tasks/js-modules/page-stats -d '{}'
 ```
 
-**Script:** `demo/scripts/demo/page-stats.js`
+**Script:** `scripts/demo/page-stats.js`
 
 === "Script pattern"
 
@@ -79,26 +76,26 @@ executor call js-modules/page-stats
 Collect every link on a page with text and href.
 
 ```bash
-executor call js-modules/all-links
-executor call js-modules/all-links '{"maxLinks":"50"}'
+curl -s -X POST localhost:8765/tasks/js-modules/all-links -d '{}'
+curl -s -X POST localhost:8765/tasks/js-modules/all-links -d '{"maxLinks":"50"}'
 ```
 
-**Script:** `demo/scripts/demo/all-links.js`
+**Script:** `scripts/demo/all-links.js`
 
-**Concepts:** passing args from YAML into JS via `args:` array.
+**Concepts:** passing `args` from the recipe into JS.
 
 ---
 
 ## Inline vs module
 
-| Inline `script:` | `fn:` module |
+| Inline JS | `fn` module |
 |---|---|
 | Good for 1–5 lines | Good for anything longer |
-| Lives in the YAML | Lives in `scripts/` |
+| Lives in the recipe | Lives in `scripts/` |
 | Hard to test/format | Normal `.js` file |
 | No reuse | Shared across tasks |
 
-Cookbook recipe: [§4 Use a JS module](../cookbook.md#4-use-a-js-module-instead-of-inline-script)
+Cookbook recipe: [Use a JS module](../cookbook.md)
 
 ---
 

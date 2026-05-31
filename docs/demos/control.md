@@ -10,25 +10,26 @@ recording.
 Run another task's flow inside the current window, then use its results.
 
 ```bash
-executor call control/call
+curl -s -X POST localhost:8765/tasks/control/call -d '{}'
 ```
 
-=== "Task YAML"
+=== "Recipe (.webtask)"
 
-    ```yaml
-    name: "control/call"
-    flow:
-      - run: call
-        params: { task: "basics/title" }
-      - run: return
-        params: { value: "{{page.title}}" }
+    ```capy
+    task "control/call"
+        pool default
+        transport rest
+
+        call "basics/title"
+        return "{{page.title}}"
+    end
     ```
 
 ```mermaid
 flowchart TD
     A["control/call starts"]
-    B["call basics/title\n(reuses same window)"]
-    C["page.title available\nin template context"]
+    B["call basics/title<br/>(reuses same window)"]
+    C["page.title available<br/>in template context"]
     D["return title string"]
 
     A --> B --> C --> D
@@ -46,28 +47,21 @@ this heavily (`setup` → `list-chats` → `get-messages`).
 Repeat steps while a condition holds — iterate over pages, retry on failure.
 
 ```bash
-executor call control/loop
+curl -s -X POST localhost:8765/tasks/control/loop -d '{}'
 ```
 
 === "Pattern"
 
-    ```yaml
-    - run: loop
-      params:
-        maxIterations: 10
-      while:
-        run: js
-        params:
-          script: "return document.querySelector('.next-page') !== null"
-      do:
-        - run: extract
-          as: page_items
-          params: { … }
-        - run: action
-          params: { action: click, selector: ".next-page" }
+    ```capy
+    loop max 10 while js "return document.querySelector('.next-page') !== null"
+        extract page_items from ".item" repeat
+            title text ".title"
+        end
+        click ".next-page"
+    end
     ```
 
-**Concepts:** `loop` with `while:` condition, `do:` body, pagination.
+**Concepts:** `loop` with a `while` condition and a body, pagination.
 
 See also [Crawl → quotes-paginated](crawl.md#quotes-paginated).
 
@@ -78,10 +72,10 @@ See also [Crawl → quotes-paginated](crawl.md#quotes-paginated).
 Same as `loop` but the condition comes from a JS module.
 
 ```bash
-executor call control/loop-fn
+curl -s -X POST localhost:8765/tasks/control/loop-fn -d '{}'
 ```
 
-**Concepts:** `fn:` in loop conditions, cleaner complex logic.
+**Concepts:** `fn` modules in loop conditions, cleaner complex logic.
 
 ---
 
@@ -90,17 +84,13 @@ executor call control/loop-fn
 Block until a JavaScript expression returns true.
 
 ```bash
-executor call control/await-js
+curl -s -X POST localhost:8765/tasks/control/await-js -d '{}'
 ```
 
 === "Use case"
 
-    ```yaml
-    - run: await-js
-      params:
-        script: "return document.querySelector('.loaded') !== null"
-        timeoutMs: 30000
-        pollMs: 500
+    ```capy
+    await js "return document.querySelector('.loaded') !== null" timeout 30000 poll 500
     ```
 
 **Concepts:** waiting for JS-driven UI state, SPAs, lazy widgets.
@@ -112,7 +102,7 @@ executor call control/await-js
 Record a GIF of a single step (not the whole flow).
 
 ```bash
-executor call control/record-step
+curl -s -X POST localhost:8765/tasks/control/record-step -d '{}'
 ```
 
 **Concepts:** combining [Recording](recording.md) with granular step control.

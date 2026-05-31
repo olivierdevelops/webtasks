@@ -9,8 +9,9 @@ Four tasks for outbound HTTP (no browser) and structured data export.
 Fetch a URL via Go's HTTP client — no Chrome window needed.
 
 ```bash
-executor call backend/http-get
-executor call backend/http-get '{"url":"https://api.github.com/repos/chromedp/chromedp"}'
+curl -s -X POST localhost:8765/tasks/backend/http-get -d '{}'
+curl -s -X POST localhost:8765/tasks/backend/http-get \
+  -d '{"url":"https://api.github.com/repos/chromedp/chromedp"}'
 ```
 
 **Concepts:** `http-get`, mixing browser and non-browser steps in one bundle.
@@ -24,18 +25,13 @@ Use when you've discovered a JSON API via [Network → capture](network.md).
 POST JSON to an endpoint and return the response.
 
 ```bash
-executor call backend/http-post
+curl -s -X POST localhost:8765/tasks/backend/http-post -d '{}'
 ```
 
 === "Pattern"
 
-    ```yaml
-    - run: http-post
-      as: response
-      params:
-        url: "https://httpbin.org/post"
-        headers: { "Content-Type": "application/json" }
-        body: '{"key": "{{value}}"}'
+    ```capy
+    http-post response url "https://httpbin.org/post" body "{\"key\":\"{{value}}\"}"
     ```
 
 **Concepts:** webhook triggers, API integration without browser overhead.
@@ -47,10 +43,10 @@ executor call backend/http-post
 Extract data and export as CSV.
 
 ```bash
-executor call backend/export-csv
+curl -s -X POST localhost:8765/tasks/backend/export-csv -d '{}'
 ```
 
-**Concepts:** `export` action with `format: csv`, server-side file generation.
+**Concepts:** `export csv`, server-side file generation.
 
 ---
 
@@ -59,17 +55,13 @@ executor call backend/export-csv
 Export the same data as CSV, NDJSON, and Markdown in one task.
 
 ```bash
-executor call backend/export-formats
+curl -s -X POST localhost:8765/tasks/backend/export-formats -d '{}'
 ```
 
-=== "Export action"
+=== "Export step"
 
-    ```yaml
-    - run: export
-      params:
-        format: "ndjson"    # csv | ndjson | markdown
-        path: "/tmp/out.ndjson"
-        data: "{{items}}"
+    ```capy
+    export ndjson path "/tmp/out.ndjson" data "{{items}}"   # csv | ndjson | md
     ```
 
 **Concepts:** multiple export formats, piping extract results to files.
@@ -107,4 +99,4 @@ tasks to minimize browser time.
 ## What's next?
 
 - [Crawl](crawl.md) — extract data to export
-- [Cookbook §11](../cookbook.md#11-ship-a-deployment-bundle) — ship exports in production
+- [Deployment](../deploy.md) — ship exports in production

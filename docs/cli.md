@@ -1,13 +1,46 @@
-# The `executor` CLI
+# CLI & commands
 
-`commands.yaml` defines a set of `executor` commands that wrap the common
-build / run / call workflows. They're convenience scripts around `go build`,
-the binary, and `curl` — everything they do, you can do by hand. This is the
-reference; see the inline comments in
-[commands.yaml](../commands.yaml) for the authoritative source.
+There are two ways to drive webtasks. **End users only need the first.**
+
+## 1. The `webtasks` binary + HTTP (what you actually use)
+
+The product is the `webtasks` binary. It takes its configuration from
+environment variables and serves the HTTP API — there are no subcommands to
+learn. You run the server, then call tasks with `curl` (or any HTTP client).
+
+```bash
+# start the server against a bundle
+WEBTASKS_BUNDLE=~/webtasks/demo webtasks &
+
+# inspect
+curl -s localhost:8765/health        | python3 -m json.tool   # pool status + task count
+curl -s localhost:8765/tasks         | python3 -m json.tool   # every task + its schema
+
+# run a task (optional JSON body of inputs)
+curl -s -X POST localhost:8765/tasks/basics/title -d '{}'
+curl -s -X POST localhost:8765/tasks/search/duckduckgo -d '{"q":"golang"}'
+
+# stream live progress
+curl -N -X POST localhost:8765/tasks/streaming/progress \
+  -H 'Accept: text/event-stream' -d '{}'
+```
+
+That's the whole user-facing surface. → [HTTP API](http-api.md) for the full
+contract, [Deployment](deploy.md) for the environment variables.
+
+---
+
+## 2. `executor` — an optional helper for contributors
+
+The repo ships a `commands.yaml` of `executor` shortcuts that wrap the
+`go build` / run / package workflows used while **developing webtasks itself**.
+They're pure convenience around the binary and `curl` — you never need them to
+*use* webtasks, only to hack on it. See
+[commands.yaml](https://github.com/olivierdevelops/webtasks/blob/main/commands.yaml)
+for the authoritative source.
 
 All commands honour `WEBTASKS_PORT` (default `8765`) when talking to a running
-server, and `WEBTASKS_*` env vars when starting one. → [configuration.md](configuration.md)
+server, and `WEBTASKS_*` env vars when starting one. → [Deployment](deploy.md)
 
 ---
 
@@ -19,7 +52,7 @@ server, and `WEBTASKS_*` env vars when starting one. → [configuration.md](conf
 | `executor server` | Build, then run the server. Defaults the bundle to `./demo` and `WEBTASKS_HEADLESS=true`; override with env vars. |
 | `executor clean` | Remove `build/` and `dist/`. |
 | `executor bundle [out]` | Zip `bundle-example/` into `out` (default `dist/bundle.zip`). |
-| `executor package` | Build a stripped static binary (`CGO_ENABLED=0 -trimpath -ldflags '-s -w'`) **and** `dist/bundle.zip`. Ship both. → [bundle.md](bundle.md) |
+| `executor package` | Build a stripped static binary (`CGO_ENABLED=0 -trimpath -ldflags '-s -w'`) **and** `dist/bundle.zip`. Ship both. → [Deployment](deploy.md) |
 
 ```bash
 executor build
@@ -77,8 +110,8 @@ executor concio-setup
 executor concio-get-messages "Nicholas Huang" 0 true
 ```
 
-See [../concio/README.md](../concio/README.md) for the bundle's structure and
-the output format it produces.
+See the [concio bundle](https://github.com/olivierdevelops/webtasks/tree/main/concio)
+for its structure and the output format it produces.
 
 ---
 

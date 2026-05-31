@@ -1,20 +1,62 @@
 /* Hero banner on the home page */
 .hero {
   background: linear-gradient(135deg, #3949ab 0%, #5e35b1 50%, #7b1fa2 100%);
-  border-radius: 12px;
+  border-radius: 14px;
   color: #fff;
-  padding: 2rem 2.5rem;
+  padding: 2.5rem 2.5rem 2rem;
   margin-bottom: 2rem;
+  box-shadow: 0 10px 30px rgba(94, 53, 177, 0.25);
 }
 
 .hero h1 {
   color: #fff;
   margin-top: 0;
+  font-size: 2.2rem;
+  line-height: 1.15;
 }
 
 .hero p {
   font-size: 1.1rem;
-  opacity: 0.95;
+  opacity: 0.97;
+  max-width: 46rem;
+}
+
+/* Stat chips under the hero headline */
+.hero-stat {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: #fff;
+  border-radius: 999px;
+  padding: 0.2rem 0.8rem;
+  margin: 0.15rem 0.3rem 0.15rem 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+/* Make hero buttons readable on the gradient */
+.hero .md-button {
+  margin-top: 1.1rem;
+  border-color: rgba(255, 255, 255, 0.9);
+  color: #fff;
+}
+
+.hero .md-button:hover {
+  background-color: #fff;
+  color: #5e35b1;
+  border-color: #fff;
+}
+
+.hero .md-button--primary {
+  background-color: #fff;
+  color: #5e35b1;
+  border-color: #fff;
+}
+
+.hero .md-button--primary:hover {
+  background-color: rgba(255, 255, 255, 0.85);
+  color: #4527a0;
 }
 
 /* Demo cards grid */

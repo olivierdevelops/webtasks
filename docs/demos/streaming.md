@@ -10,10 +10,11 @@ A four-step flow that emits `status`, `progress`, and `done` events as it runs.
 
 ```bash
 # Sync REST (waits for final JSON)
-executor call streaming/progress
+curl -s -X POST localhost:8765/tasks/streaming/progress -d '{}'
 
 # SSE stream (live events)
-executor call streaming/progress '{}' true
+curl -N -X POST localhost:8765/tasks/streaming/progress \
+  -H 'Accept: text/event-stream' -d '{}'
 ```
 
 === "curl SSE"
@@ -81,44 +82,33 @@ data: {"ok":true,"data":{"page":{"title":"Example Domain"}}}
 
 ---
 
-## Task YAML
+## Recipe (.webtask)
 
-```yaml
-name: "streaming/progress"
-poolTag: "default"
-transports: ["rest", "sse"]
-timeoutMs: 30000
+```capy
+task "streaming/progress"
+    pool default
+    timeout 30000
+    transport rest
+    transport sse
 
-flow:
-  - status: "Step 1 of 4 — navigate"
-    run: goto
-    params: { url: "https://example.com" }
+    status "Step 1 of 4 — navigate"
+    goto "https://example.com"
+    emit progress "navigation complete" data { fraction: 0.25 }
 
-  - run: emit-event
-    params:
-      kind: "progress"
-      text: "navigation complete"
-      data: { fraction: 0.25 }
+    status "Step 2 of 4 — pause briefly"
+    wait 1000
+    emit progress "pause finished" data { fraction: 0.5 }
 
-  - status: "Step 2 of 4 — pause briefly"
-    run: wait
-    params: { duration: "1_000" }
-
-  - run: emit-event
-    params:
-      kind: "progress"
-      text: "pause finished"
-      data: { fraction: 0.5 }
-
-  # … steps 3–4 …
+    # … steps 3–4 …
+end
 ```
 
 **Concepts:**
 
-- `transports: ["rest", "sse"]` — opt in to streaming
-- Every `status:` line becomes an SSE `status` event automatically
-- `emit-event` sends custom `progress` (or any kind) events with arbitrary JSON
-- Final result arrives as `event: done`
+- Two `transport` lines (`rest` + `sse`) opt the task into streaming
+- Every `status "…"` line becomes an SSE `status` event automatically
+- `emit progress "…" data {…}` sends custom events with arbitrary JSON
+- The final result arrives as `event: done`
 
 ---
 

@@ -9,20 +9,14 @@ Native browser download capture — click a link and poll for the file bytes.
 Click a download link and capture the PNG bytes.
 
 ```bash
-executor call downloads/grab-image
+curl -s -X POST localhost:8765/tasks/downloads/grab-image -d '{}'
 ```
 
 === "Flow pattern"
 
-    ```yaml
-    flow:
-      - run: goto
-        params: { url: "https://example.com/page-with-download" }
-      - run: download-each
-        as: files
-        params:
-          selector: "a.download-link"
-          timeoutMs: 30000
+    ```capy
+    goto "https://example.com/page-with-download"
+    download-each files selector "a.download-link" timeout 30000
     ```
 
 **Concepts:** `download-each`, native CDP download behavior (no WebDriver hacks).
@@ -66,4 +60,4 @@ window gets an isolated subdirectory.
 ## What's next?
 
 - [Rendering](rendering.md) — PDF and screenshot capture
-- [Static mounts](../static-mounts.md) — serve captured files over HTTP
+- [Static mounts](../deploy.md#static-file-mounts) — serve captured files over HTTP

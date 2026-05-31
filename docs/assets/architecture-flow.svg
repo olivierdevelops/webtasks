@@ -17,12 +17,12 @@
     </style>
   </defs>
   <rect width="820" height="320" rx="12" fill="url(#bg)"/>
-  <text x="410" y="32" text-anchor="middle" font="700 18px system-ui,sans-serif" fill="#283593">webtasks  one binary, YAML tasks, HTTP API</text>
+  <text x="410" y="32" text-anchor="middle" font="700 18px system-ui,sans-serif" fill="#283593">webtasks  one binary, .webtask recipes, HTTP API</text>
 
   <!-- Client -->
   <rect class="box" x="30" y="70" width="130" height="70" rx="8"/>
   <text class="title" x="95" y="100" text-anchor="middle">HTTP client</text>
-  <text class="sub" x="95" y="120" text-anchor="middle">curl ∑ Python ∑ JS</text>
+  <text class="sub" x="95" y="120" text-anchor="middle">curl ù Python ù JS</text>
 
   <!-- Server -->
   <rect class="box pulse" x="210" y="55" width="160" height="100" rx="8"/>
@@ -33,7 +33,7 @@
   <!-- Bundle -->
   <rect class="box" x="210" y="190" width="160" height="90" rx="8"/>
   <text class="title" x="290" y="220" text-anchor="middle">Config bundle</text>
-  <text class="sub" x="290" y="240" text-anchor="middle">tasks/*.yaml</text>
+  <text class="sub" x="290" y="240" text-anchor="middle">tasks/*.webtask</text>
   <text class="sub" x="290" y="258" text-anchor="middle">scripts/*.js</text>
 
   <!-- Chrome pool -->
@@ -53,5 +53,5 @@
   <line class="arrow" x1="290" y1="155" x2="290" y2="188"/>
   <text class="sub" x="175" y="95">POST /tasks/&</text>
   <text class="sub" x="395" y="95">flow steps</text>
-  <text class="sub" x="600" y="95">goto ∑ click</text>
+  <text class="sub" x="600" y="95">goto ù click</text>
 </svg>

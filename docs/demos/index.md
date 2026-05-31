@@ -1,16 +1,16 @@
-# Demo catalogue
+# Example catalogue
 
 The [`demo/`](https://github.com/olivierdevelops/webtasks/tree/main/demo) bundle
-contains **38 runnable tasks** across 11 categories. Each task is a self-contained
-YAML file you can read in under a minute.
+contains **38 runnable tasks** across 11 categories. Each is a self-contained
+`.webtask` recipe you can read in under a minute.
 
 ---
 
-## Run all demos
+## Run any example
 
 ```bash
 # Start the server with the demo bundle
-WEBTASKS_BUNDLE=$(pwd)/demo ./build/webtasks &
+WEBTASKS_BUNDLE=$(pwd)/demo webtasks &
 
 # List everything
 curl -s http://127.0.0.1:8765/tasks | python3 -m json.tool
@@ -18,92 +18,100 @@ curl -s http://127.0.0.1:8765/tasks | python3 -m json.tool
 # Run any task by name
 curl -s -X POST http://127.0.0.1:8765/tasks/basics/title \
   -H 'Content-Type: application/json' -d '{}'
+
+# Stream live progress with SSE
+curl -N -X POST http://127.0.0.1:8765/tasks/streaming/progress \
+  -H 'Accept: text/event-stream' -d '{}'
 ```
 
-With the `executor` helper:
-
-```bash
-executor server &          # defaults WEBTASKS_BUNDLE to ./demo
-executor list-tasks
-executor call basics/title
-executor call crawl/hackernews-top
-executor call streaming/progress '{}' true   # SSE stream
-```
+The server **hot-reloads** the bundle on every request — edit a recipe and
+re-call it, no restart.
 
 ---
 
-## Category index
+## Browse by category
 
-```mermaid
-mindmap
-  root((demo bundle))
-    basics
-      title
-      screenshot
-      inline-js
-      save-html
-      wait-then-click
-    crawl
-      hackernews-top
-      github-trending
-      wikipedia-toc
-      trending-papers
-      quotes-paginated
-    search
-      duckduckgo
-      hn-search
-    interaction
-      form-fill
-      scroll-feed
-    streaming
-      progress
-    js-modules
-      meta-tags
-      page-stats
-      all-links
-    downloads
-      grab-image
-    rendering
-      pdf
-      snapshot
-      fullpage-shot
-      html-to-pdf
-      emulate-dark
-    network
-      capture
-      cookies
-      console
-      idle
-    backend
-      http-get
-      http-post
-      export-csv
-      export-formats
-    control
-      call
-      loop
-      loop-fn
-      await-js
-      record-step
-    recording
-      record
-```
+<div class="grid cards" markdown>
 
-| Category | Tasks | Page |
-|---|---|---|
-| **basics/** | 5 | [Basics](basics.md) |
-| **crawl/** | 5 | [Crawl & scrape](crawl.md) |
-| **search/** | 2 | [Search](search.md) |
-| **interaction/** | 2 | [Interaction](interaction.md) |
-| **streaming/** | 1 | [Streaming (SSE)](streaming.md) |
-| **js-modules/** | 3 | [JS modules](js-modules.md) |
-| **downloads/** | 1 | [Downloads](downloads.md) |
-| **rendering/** | 5 | [Rendering](rendering.md) |
-| **network/** | 4 | [Network](network.md) |
-| **backend/** | 4 | [Backend & export](backend.md) |
-| **control/** | 5 | [Control flow](control.md) |
-| **recording/** | 1 | [Recording](recording.md) |
-| **concio/** (separate bundle) | 10+ | [Real-world Concio](concio.md) |
+- :material-rocket-launch-outline:{ .lg .middle } **[Basics](basics.md)** · 5 tasks
+
+    ---
+
+    `title` · `screenshot` · `inline-js` · `save-html` · `wait-then-click`
+
+- :material-spider-web:{ .lg .middle } **[Crawl & scrape](crawl.md)** · 5 tasks
+
+    ---
+
+    `hackernews-top` · `github-trending` · `wikipedia-toc` · `trending-papers` · `quotes-paginated`
+
+- :material-magnify:{ .lg .middle } **[Search](search.md)** · 2 tasks
+
+    ---
+
+    `duckduckgo` · `hn-search`
+
+- :material-cursor-default-click-outline:{ .lg .middle } **[Interaction](interaction.md)** · 2 tasks
+
+    ---
+
+    `form-fill` · `scroll-feed`
+
+- :material-radio-tower:{ .lg .middle } **[Streaming (SSE)](streaming.md)** · 1 task
+
+    ---
+
+    `progress`
+
+- :material-language-javascript:{ .lg .middle } **[JS modules](js-modules.md)** · 3 tasks
+
+    ---
+
+    `meta-tags` · `page-stats` · `all-links`
+
+- :material-download:{ .lg .middle } **[Downloads](downloads.md)** · 1 task
+
+    ---
+
+    `grab-image`
+
+- :material-file-pdf-box:{ .lg .middle } **[Rendering](rendering.md)** · 5 tasks
+
+    ---
+
+    `pdf` · `snapshot` · `fullpage-shot` · `html-to-pdf` · `emulate-dark`
+
+- :material-lan-connect:{ .lg .middle } **[Network](network.md)** · 4 tasks
+
+    ---
+
+    `capture` · `cookies` · `console` · `idle`
+
+- :material-server-network:{ .lg .middle } **[Backend & export](backend.md)** · 4 tasks
+
+    ---
+
+    `http-get` · `http-post` · `export-csv` · `export-formats`
+
+- :material-sitemap-outline:{ .lg .middle } **[Control flow](control.md)** · 5 tasks
+
+    ---
+
+    `call` · `loop` · `loop-fn` · `await-js` · `record-step`
+
+- :material-movie-open-outline:{ .lg .middle } **[Recording](recording.md)** · 1 task
+
+    ---
+
+    `record`
+
+- :material-briefcase-outline:{ .lg .middle } **[Real-world: Concio](concio.md)** · 10+ tasks
+
+    ---
+
+    A production logged-in scrape: secrets, persistent sessions, blob capture.
+
+</div>
 
 ---
 
@@ -124,27 +132,21 @@ Follow this order if you're new to webtasks:
 
 ## Hot-reload
 
-The server reloads YAML from the bundle on **every request**. Edit any file
-under `demo/tasks/`, then immediately re-run — no restart needed.
+The server reloads recipes from the bundle on **every request**. Edit any
+`.webtask` file under `demo/tasks/`, then immediately re-run — no restart needed.
 
-The demo pool is configured for **3 concurrent windows** so several tasks can
-run in parallel:
-
-```yaml
-# demo/tasks/pool.yaml
-pools:
-  default: { size: 3 }
-```
+The demo pool runs **3 concurrent windows** so several tasks can run in parallel.
+→ [Pools & sessions](../deploy.md#window-pools-sessions)
 
 ---
 
-## Add your own demo
+## Add your own
 
 ```bash
-cp demo/tasks/basics/title.yaml demo/tasks/basics/my-task.yaml
-# edit name + flow
-executor call basics/my-task
+cp demo/tasks/basics/title.webtask demo/tasks/basics/my-task.webtask
+# edit the task name + steps, then call it
+curl -s -X POST localhost:8765/tasks/basics/my-task -d '{}'
 ```
 
-Action vocabulary: [Actions reference](../actions.md) ·
-[Cookbook](../cookbook.md)
+Learn the language: [Writing tasks](../writing-tasks.md) ·
+[Actions reference](../actions.md) · [Recipes](../cookbook.md)

@@ -10,34 +10,27 @@ you'll use for most scraping workloads.
 Front-page Hacker News: rank, title, URL, and site for every story.
 
 ```bash
-executor call crawl/hackernews-top
+curl -s -X POST localhost:8765/tasks/crawl/hackernews-top -d '{}'
 ```
 
-=== "Task YAML"
+=== "Recipe (.webtask)"
 
-    ```yaml
-    name: "crawl/hackernews-top"
-    poolTag: "default"
-    transports: ["rest"]
-    timeoutMs: 20000
+    ```capy
+    task "crawl/hackernews-top"
+        pool default
+        timeout 20000
+        transport rest
 
-    flow:
-      - run: goto
-        params: { url: "https://news.ycombinator.com" }
+        goto "https://news.ycombinator.com"
+        wait until "tr.athing" timeout 10000
 
-      - run: wait-for
-        params: { selector: "tr.athing", timeoutMs: 10000 }
-
-      - run: extract
-        as: stories
-        params:
-          selector: "tr.athing"
-          repeat: true
-          fields:
-            rank:  { kind: text, selector: ".rank",        transform: trim }
-            title: { kind: text, selector: ".titleline > a" }
-            url:   { kind: attr, selector: ".titleline > a", name: "href" }
-            site:  { kind: text, selector: ".sitestr" }
+        extract stories from "tr.athing" repeat
+            rank  text ".rank" trim
+            title text ".titleline > a"
+            url   attr href on ".titleline > a"
+            site  text ".sitestr"
+        end
+    end
     ```
 
 === "Response shape"
@@ -47,8 +40,7 @@ executor call crawl/hackernews-top
       "ok": true,
       "data": {
         "stories": [
-          { "rank": "1.", "title": "…", "url": "https://…", "site": "…" },
-          …
+          { "rank": "1.", "title": "…", "url": "https://…", "site": "…" }
         ]
       }
     }
@@ -62,12 +54,12 @@ sequenceDiagram
 
     C->>S: POST /tasks/crawl/hackernews-top
     S->>HN: goto
-    S->>HN: wait-for tr.athing
-    S->>HN: extract (repeat: true)
+    S->>HN: wait until tr.athing
+    S->>HN: extract (repeat)
     S-->>C: JSON array of stories
 ```
 
-**Concepts:** `extract` with `repeat: true`, CSS selectors, `kind: attr`.
+**Concepts:** `extract … repeat`, CSS selectors, `attr` fields.
 
 ---
 
@@ -76,26 +68,30 @@ sequenceDiagram
 Trending repositories with language and time-period inputs.
 
 ```bash
-executor call crawl/github-trending
-executor call crawl/github-trending '{"language":"go","since":"weekly"}'
+curl -s -X POST localhost:8765/tasks/crawl/github-trending -d '{}'
+curl -s -X POST localhost:8765/tasks/crawl/github-trending -d '{"language":"go","since":"weekly"}'
 ```
 
-=== "Input schema"
+=== "Recipe (.webtask)"
 
-    ```yaml
-    input:
-      language: { type: string, required: false, default: "" }
-      since:    { type: string, required: false, default: "daily" }
+    ```capy
+    task "crawl/github-trending"
+        pool default
+        timeout 20000
+        transport rest
+        input language string default ""
+        input since    string default "daily"
+
+        goto "https://github.com/trending/{{language}}?since={{since}}"
+        wait until "article.Box-row" timeout 15000
+        extract repos from "article.Box-row" repeat
+            slug text "h2 a"
+            href attr href on "h2 a"
+            desc text "p"
+            stars text "a[href$='/stargazers']" trim
+        end
+    end
     ```
-
-=== "Templated URL"
-
-    ```yaml
-    - run: goto
-      params: { url: "https://github.com/trending/{{language}}?since={{since}}" }
-    ```
-
-Extracts: slug, href, description, language, stars, forks.
 
 **Concepts:** optional inputs with defaults, URL path templating.
 
@@ -107,28 +103,22 @@ Wikipedia table of contents — mixes single-object and repeated extraction
 in one task.
 
 ```bash
-executor call crawl/wikipedia-toc
+curl -s -X POST localhost:8765/tasks/crawl/wikipedia-toc -d '{}'
 ```
 
-**Concepts:** `repeat: false` for one record, `repeat: true` for a list in the
-same flow.
+**Concepts:** one `extract` for a single record, another with `repeat` for a list
+in the same flow.
 
 ---
 
 ## trending-papers
 
-The canonical smoke test — 100 trending papers from Hugging Face.
-
-```bash
-executor call crawl/trending-papers
-```
-
-This is the same task shipped in `bundle-example/` as `examples/trending-papers`.
-Use it to verify a fresh deployment:
+The canonical smoke test — 100 trending papers from Hugging Face. Use it to
+verify a fresh deployment.
 
 ```bash
 curl -s http://127.0.0.1:8765/health
-executor call crawl/trending-papers
+curl -s -X POST localhost:8765/tasks/crawl/trending-papers -d '{}'
 # expect ~100 papers with title + href
 ```
 
@@ -138,16 +128,15 @@ executor call crawl/trending-papers
 
 ## quotes-paginated
 
-Multi-page scraping pattern against quotes.toscrape.com.
+Multi-page scraping against quotes.toscrape.com — follow "next" links until
+there are none.
 
 ```bash
-executor call crawl/quotes-paginated
+curl -s -X POST localhost:8765/tasks/crawl/quotes-paginated -d '{}'
 ```
 
-**Concepts:** pagination loops, following "next" links — a pattern you'll
-adapt for any paginated site.
-
-See [Control flow → loop](control.md#loop) for looping constructs.
+**Concepts:** pagination loops, following links — a pattern you'll adapt for any
+paginated site. See [Control flow → loop](control.md#loop).
 
 ---
 
@@ -156,11 +145,11 @@ See [Control flow → loop](control.md#loop) for looping constructs.
 | Goal | Pattern |
 |---|---|
 | All table rows | `tr.athing`, `article.row` |
-| Field inside row | `.titleline > a` |
-| Attribute | `kind: attr`, `name: href` |
-| Trim whitespace | `transform: trim` |
+| Field inside a row | `.titleline > a` |
+| Attribute | `attr href on ".titleline > a"` |
+| Trim whitespace | add `trim` after the field |
 
-Full guide: [Build your own task §1](../build-your-own-task.md#1-find-your-selectors-in-devtools)
+Full guide: [Writing tasks](../writing-tasks.md).
 
 ---
 

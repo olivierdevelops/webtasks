@@ -9,31 +9,28 @@ Five tasks for capturing pages as PDF, PNG, MHTML, and emulated device views.
 Render a page to PDF via Chrome's print engine.
 
 ```bash
-executor call rendering/pdf
-executor call rendering/pdf '{"url":"https://news.ycombinator.com","path":"/tmp/hn.pdf"}'
+curl -s -X POST localhost:8765/tasks/rendering/pdf -d '{}'
+curl -s -X POST localhost:8765/tasks/rendering/pdf \
+  -d '{"url":"https://news.ycombinator.com","path":"/tmp/hn.pdf"}'
 ```
 
-=== "Task YAML"
+=== "Recipe (.webtask)"
 
-    ```yaml
-    input:
-      url:  { type: string, default: "https://example.com" }
-      path: { type: string, default: "/tmp/webtasks-demo/example.pdf" }
+    ```capy
+    task "rendering/pdf"
+        pool default
+        timeout 20000
+        transport rest
+        input url  string default "https://example.com"
+        input path string default "/tmp/webtasks-demo/example.pdf"
 
-    flow:
-      - run: goto
-        params: { url: "{{url}}" }
-      - run: wait-for
-        params: { selector: "body", timeoutMs: 10000 }
-      - run: pdf
-        as: pdf
-        params:
-          path: "{{path}}"
-          format: "A4"
-          printBackground: true
+        goto "{{url}}"
+        wait until "body" timeout 10000
+        pdf doc path "{{path}}" format A4 printBackground true
+    end
     ```
 
-Returns both a server-side file at `path` **and** base64 in `data.pdf`.
+Returns both a server-side file at `path` **and** base64 in `data.doc`.
 
 **Concepts:** `pdf` action, `printBackground`, dual output (`path` + `as`).
 
@@ -44,7 +41,7 @@ Returns both a server-side file at `path` **and** base64 in `data.pdf`.
 MHTML snapshot — single-file archive of the page with resources inlined.
 
 ```bash
-executor call rendering/snapshot
+curl -s -X POST localhost:8765/tasks/rendering/snapshot -d '{}'
 ```
 
 **Concepts:** `snapshot` action, archival capture, offline viewing.
@@ -56,7 +53,7 @@ executor call rendering/snapshot
 Full-page screenshot (entire scrollable document, not just viewport).
 
 ```bash
-executor call rendering/fullpage-shot
+curl -s -X POST localhost:8765/tasks/rendering/fullpage-shot -d '{}'
 ```
 
 Compare with [Basics → screenshot](basics.md#screenshot) (viewport only).
@@ -70,7 +67,7 @@ Compare with [Basics → screenshot](basics.md#screenshot) (viewport only).
 Render arbitrary HTML string to PDF without navigating to a URL.
 
 ```bash
-executor call rendering/html-to-pdf
+curl -s -X POST localhost:8765/tasks/rendering/html-to-pdf -d '{}'
 ```
 
 **Concepts:** `html-to-pdf`, generating reports from templates server-side.
@@ -82,7 +79,7 @@ executor call rendering/html-to-pdf
 Emulate dark-mode / device preferences before capture.
 
 ```bash
-executor call rendering/emulate-dark
+curl -s -X POST localhost:8765/tasks/rendering/emulate-dark -d '{}'
 ```
 
 **Concepts:** device emulation, `prefers-color-scheme`, pre-capture setup.

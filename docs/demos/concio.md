@@ -28,17 +28,17 @@ Designed for consumption by rag-ingestion / message-reader pipelines.
 ```mermaid
 flowchart TB
     subgraph bundle["concio/"]
-        tasks["tasks/concio/*.yaml"]
+        tasks["tasks/concio/*.webtask"]
         scripts["scripts/concio/*.js"]
-        secrets["secrets.yaml"]
-        mounts["static-mounts.yaml"]
+        secrets["secrets config"]
+        mounts["static-mounts config"]
     end
 
     subgraph tasks_detail["Tasks"]
-        setup[setup.yaml]
-        list[list-chats.yaml]
-        msgs[get-messages.yaml]
-        files[capture-files.yaml]
+        setup[setup.webtask]
+        list[list-chats.webtask]
+        msgs[get-messages.webtask]
+        files[capture-files.webtask]
     end
 
     tasks --> tasks_detail
@@ -46,15 +46,15 @@ flowchart TB
 
 | File | Purpose |
 |---|---|
-| `tasks/concio/setup.yaml` | Idempotent login |
-| `tasks/concio/list-chats.yaml` | Sidebar chat list |
-| `tasks/concio/list-contacts.yaml` | Contacts directory |
-| `tasks/concio/list-groups.yaml` | Groups directory |
-| `tasks/concio/get-messages.yaml` | Open chat + scroll + extract |
-| `tasks/concio/capture-files.yaml` | Encrypted attachment capture |
+| `tasks/concio/setup.webtask` | Idempotent login |
+| `tasks/concio/list-chats.webtask` | Sidebar chat list |
+| `tasks/concio/list-contacts.webtask` | Contacts directory |
+| `tasks/concio/list-groups.webtask` | Groups directory |
+| `tasks/concio/get-messages.webtask` | Open chat + scroll + extract |
+| `tasks/concio/capture-files.webtask` | Encrypted attachment capture |
 | `scripts/concio/login.js` | Form fill with `{{CONCIO_PASSWORD}}` |
 | `scripts/concio/install-download-hook.js` | Blob capture patch |
-| `secrets.yaml` | Declares `CONCIO_PASSWORD` |
+| secrets config | Declares `CONCIO_PASSWORD` |
 
 ---
 
@@ -62,24 +62,25 @@ flowchart TB
 
 ```bash
 # 1. Start with the concio bundle
-WEBTASKS_BUNDLE=$(pwd)/concio ./build/webtasks &
-# Resolve CONCIO_PASSWORD via env, --flag, or prompt (see secrets.yaml)
+WEBTASKS_BUNDLE=$(pwd)/concio webtasks &
+# Resolve CONCIO_PASSWORD via env, --flag, or prompt (see the secrets config)
 
 # 2. Log in (idempotent)
-executor call concio/setup
+curl -s -X POST localhost:8765/tasks/concio/setup -d '{}'
 
 # 3. Explore
-executor call concio/list-chats
-executor call concio/list-contacts
+curl -s -X POST localhost:8765/tasks/concio/list-chats -d '{}'
+curl -s -X POST localhost:8765/tasks/concio/list-contacts -d '{}'
 
 # 4. Pull one chat's messages
-executor call concio/get-messages '{"peerName":"Alice"}'
+curl -s -X POST localhost:8765/tasks/concio/get-messages -d '{"peerName":"Alice"}'
 ```
 
-Or use the all-in-one helper:
+Or stream the full server-side sweep over every chat:
 
 ```bash
-executor concio-extract
+curl -N -X POST localhost:8765/tasks/concio/extract-all \
+  -H 'Accept: text/event-stream' -d '{"out":".ignore/data"}'
 ```
 
 ---
@@ -88,31 +89,23 @@ executor concio-extract
 
 ### Declared secrets
 
-```yaml
-# concio/secrets.yaml
-secrets:
-  - name: CONCIO_PASSWORD
-    description: "Concio account password"
-    required: true
-    sensitive: true
-    sources: ["env", "arg", "prompt"]
-```
+The bundle declares one **required, sensitive** secret — `CONCIO_PASSWORD` —
+resolved at startup from the environment, a launcher flag, or an interactive
+prompt. Tasks then reference it as `{{CONCIO_PASSWORD}}`; no `input` entry is
+needed.
 
-Used in JS as `{{CONCIO_PASSWORD}}` after resolution at startup.
-
-→ [Secrets reference](../secrets.md)
+→ [Secrets reference](../deploy.md#secrets)
 
 ### Persistent login profile
 
-The `concio` pool uses a persistent Chrome profile so login survives restarts:
+The `concio` pool is `size 1` and **persistent**, so the Chrome profile (and
+therefore the login) survives server restarts:
 
-```yaml
-# concio/tasks/pool.yaml
-pools:
-  concio: { size: 1, persistent: true }
+```capy
+sendkeys "#password" keys "{{CONCIO_PASSWORD}}"
 ```
 
-→ [Pools reference](../pools.md)
+→ [Persistent profiles](../deploy.md#persistent-profiles)
 
 ### Blob download hook
 
@@ -124,33 +117,22 @@ The bundle patches `URL.createObjectURL` to capture blobs:
 // Intercepts blob URLs and posts captured bytes back to webtasks
 ```
 
-→ [Cookbook §7](../cookbook.md#7-trigger-downloads-and-capture-the-bytes)
+→ [Cookbook](../cookbook.md)
 
 ### Scroll-to-load history
 
-```yaml
-- run: scroll-until-stable
-  params:
-    selector: ".chat-panel"
-    direction: up
-    stableMs: 1000
-    maxIterations: 50
+```capy
+scroll until stable ".chat-panel" direction up stable 1000 max 50
 ```
 
 Same primitive as [Interaction → scroll-feed](interaction.md).
 
 ### Static mounts for captured files
 
-```yaml
-# concio/static-mounts.yaml
-mounts:
-  - prefix: /files
-    path: "${CONCIO_OUTPUT_DIR}/files"
-```
+A `/files` mount points at the capture output directory so attachments are
+fetchable over HTTP for downstream processing.
 
-Serve captured attachments over HTTP for downstream processing.
-
-→ [Static mounts](../static-mounts.md)
+→ [Static mounts](../deploy.md#static-file-mounts)
 
 ---
 
@@ -190,6 +172,6 @@ Use the Concio bundle as a template when your target:
 
 ## What's next?
 
-- [Secrets](../secrets.md) — declare and resolve credentials
-- [Pools](../pools.md) — persistent profiles and concurrency
-- [Build your own task](../build-your-own-task.md) — start from scratch
+- [Secrets](../deploy.md#secrets) — declare and resolve credentials
+- [Pools & sessions](../deploy.md#window-pools-sessions) — persistent profiles and concurrency
+- [Writing tasks](../writing-tasks.md) — start from scratch
