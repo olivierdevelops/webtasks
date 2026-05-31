@@ -72,17 +72,23 @@ func RunFile(args []string) error {
 		return fmt.Errorf("build window: %w", err)
 	}
 
-	// JS modules resolve from a `scripts/` directory next to the task file.
-	scriptsDir := filepath.Join(filepath.Dir(file), "scripts")
+	// JS modules resolve from a `scripts/` directory. We look next to the task
+	// file and one level up (the bundle root, when the recipe lives in tasks/).
+	fileDir := filepath.Dir(file)
+	scriptDirs := []string{
+		filepath.Join(fileDir, "scripts"),
+		filepath.Join(fileDir, "..", "scripts"),
+	}
 	scripts := features.JsScripts{Get: func(name string) (string, bool) {
 		if !strings.HasSuffix(name, ".js") {
 			name += ".js"
 		}
-		data, rerr := os.ReadFile(filepath.Join(scriptsDir, name))
-		if rerr != nil {
-			return "", false
+		for _, dir := range scriptDirs {
+			if data, rerr := os.ReadFile(filepath.Join(dir, name)); rerr == nil {
+				return string(data), true
+			}
 		}
-		return string(data), true
+		return "", false
 	}}
 
 	run := orchUC.NewRunRegisteredTask(registry, lease, browser, extract, tpl, scripts, httpc)

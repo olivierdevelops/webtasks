@@ -8,6 +8,19 @@ depending on what you're trying to do.
 
 ## The mental model
 
+!!! tip "The fastest start: `webtasks init`"
+    Don't want to assemble files by hand? Scaffold a working project and run it
+    immediately:
+
+    ```bash
+    webtasks init my-project
+    cd my-project
+    webtasks run tasks/hello.webtask
+    ```
+
+    It drops in two sample recipes, pool config, and a `COMMANDS.md` reference
+    you can crib from. The rest of this page explains what those pieces are.
+
 There is **one binary** and it does **three jobs**:
 
 <div class="grid cards" markdown>

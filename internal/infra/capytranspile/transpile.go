@@ -50,7 +50,13 @@ func ToYAML(recipePath string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	out, err := exec.Command("capy", "run", gp, recipePath).CombinedOutput()
+	// capy mis-parses some statements when handed an absolute script path, so
+	// run it from the recipe's directory and pass the bare filename.
+	cmd := exec.Command("capy", "run", gp, filepath.Base(recipePath))
+	if dir := filepath.Dir(recipePath); dir != "" {
+		cmd.Dir = dir
+	}
+	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("transpile %s: %v\n%s", recipePath, err, out)
 	}

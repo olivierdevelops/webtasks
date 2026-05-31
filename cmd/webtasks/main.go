@@ -3,6 +3,7 @@
 //
 //	webtasks                      start the server (bundle from WEBTASKS_BUNDLE)
 //	webtasks serve                same as above
+//	webtasks init [dir]           scaffold a starter bundle to build from
 //	webtasks run <file>           run one .webtask/.yaml file once, print JSON
 //	webtasks bundle <dir> [out]   package a directory into a runnable bundle zip
 //
@@ -35,6 +36,8 @@ func main() {
 	switch cmd {
 	case "serve":
 		fail(orchestrator.Run(orchestrator.FromEnv(), rest))
+	case "init":
+		fail(orchestrator.InitProject(rest))
 	case "run":
 		fail(orchestrator.RunFile(rest))
 	case "bundle":
@@ -63,6 +66,7 @@ func usage() {
 Usage:
   webtasks                          start the HTTP server (bundle from WEBTASKS_BUNDLE)
   webtasks serve                    start the HTTP server
+  webtasks init [dir]               scaffold a starter bundle to build from
   webtasks run <file> [opts]        run one recipe once and print JSON output
   webtasks bundle <dir> [out.zip]   package a directory into a runnable bundle
   webtasks version                  print version

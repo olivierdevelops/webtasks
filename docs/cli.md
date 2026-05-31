@@ -7,10 +7,39 @@ into a deployable bundle.
 ```bash
 webtasks                          # start the HTTP server (bundle from WEBTASKS_BUNDLE)
 webtasks serve                    # same as above, explicit
+webtasks init [dir]               # scaffold a starter bundle to build from
 webtasks run <file> [opts]        # run one recipe once and print JSON
 webtasks bundle <dir> [out.zip]   # package a directory into a runnable bundle
 webtasks version                  # print version
 ```
+
+---
+
+## `webtasks init` — scaffold a starter bundle
+
+Not sure where to begin? `webtasks init` writes a small, working project you can
+run immediately and edit from there: a couple of sample recipes, pool config,
+and a `COMMANDS.md` reference.
+
+```bash
+webtasks init my-project
+cd my-project
+webtasks run tasks/hello.webtask        # works out of the box
+```
+
+It creates:
+
+```
+my-project/
+├── tasks/
+│   ├── hello.webtask    # open a page, read title + heading
+│   ├── quotes.webtask   # takes an input, returns a list
+│   └── pool.yaml        # window-pool sizes
+├── COMMANDS.md          # command reference for the scaffold
+└── .gitignore
+```
+
+`init` refuses to write into a non-empty directory unless you pass `--force`.
 
 ---
 

@@ -1,0 +1,20 @@
+# Your first recipe. A recipe becomes the HTTP endpoint POST /tasks/hello
+# and can also be run directly:
+#
+#   webtasks run tasks/hello.webtask
+#
+task "hello"
+    pool default
+    timeout 15000
+    transport rest
+
+    status "Opening example.com"
+    goto "https://example.com"
+
+    status "Reading the page"
+    extract page from "html"
+        title   text "title"
+        heading text "h1"
+        body    text "p"
+    end
+end

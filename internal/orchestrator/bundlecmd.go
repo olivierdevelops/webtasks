@@ -42,6 +42,12 @@ func BundleDir(args []string) error {
 		return err
 	}
 
+	if parent := filepath.Dir(out); parent != "" && parent != "." {
+		if err := os.MkdirAll(parent, 0o755); err != nil {
+			return fmt.Errorf("create output dir %q: %w", parent, err)
+		}
+	}
+
 	zf, err := os.Create(out)
 	if err != nil {
 		return fmt.Errorf("create %q: %w", out, err)

@@ -1,0 +1,22 @@
+# A recipe with an input and a repeating extract. `{{tag}}` is substituted into
+# the URL; `repeat` makes the extract return a list (one object per match).
+#
+#   webtasks run tasks/quotes.webtask
+#   webtasks run tasks/quotes.webtask --input tag=humor
+#
+task "quotes"
+    pool default
+    timeout 20000
+    transport rest
+
+    input tag string default "inspirational"
+
+    status "Loading quotes tagged {{tag}}"
+    goto "https://quotes.toscrape.com/tag/{{tag}}/"
+    wait until ".quote" timeout 10000
+
+    extract quotes from ".quote" repeat
+        text   text ".text"
+        author text ".author"
+    end
+end

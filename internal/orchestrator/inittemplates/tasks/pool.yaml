@@ -1,0 +1,6 @@
+# Window pools bound how many Chrome windows run in parallel. A task picks its
+# pool with `pool <name>` (defaults to "default"). Mark a pool `persistent` to
+# keep its Chrome profile — and any logged-in session — across restarts.
+pools:
+  default:
+    size: 2
