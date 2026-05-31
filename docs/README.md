@@ -1,5 +1,7 @@
 # webtasks documentation
 
+📖 **Browse the full site:** [olivierdevelops.github.io/webtasks](https://olivierdevelops.github.io/webtasks/)
+
 `webtasks` is a long-running **browser-automation server**: one Go binary plus
 a config bundle of YAML "tasks". Each task is a declarative browser flow
 (`goto`, `wait-for`, `click`, `extract`, `download-each`, …) that the server
