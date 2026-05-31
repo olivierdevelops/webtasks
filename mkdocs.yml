@@ -94,6 +94,35 @@ nav:
   - Guides:
     - Build your own task: build-your-own-task.md
     - Cookbook: cookbook.md
+  - Capy integration:
+    - capy-integration/index.md
+    - Why replace YAML?: capy-integration/01-why-replace-yaml.md
+    - Capy primer: capy-integration/02-capy-primer.md
+    - YAML mapping: capy-integration/03-yaml-capy-mapping.md
+    - Grammar overview: capy-integration/04-proposed-grammar.md
+    - webtasks.capy library: capy-integration/05-webtasks-library.md
+    - Actions in Capy: capy-integration/06-actions-grammar.md
+    - Types & validation: capy-integration/07-types-validation.md
+    - Architecture: capy-integration/08-architecture.md
+    - Bundle loader: capy-integration/09-bundle-loader.md
+    - Transpilation: capy-integration/10-transpilation-pipeline.md
+    - Go embedding: capy-integration/11-go-embedding.md
+    - Migration: capy-integration/12-migration.md
+    - Samples:
+      - Hello: capy-integration/samples/01-hello.md
+      - Hacker News: capy-integration/samples/02-hackernews.md
+      - Search: capy-integration/samples/03-search.md
+      - Form fill: capy-integration/samples/04-form-fill.md
+      - SSE: capy-integration/samples/05-streaming.md
+      - JS modules: capy-integration/samples/06-js-modules.md
+      - Control flow: capy-integration/samples/07-control-flow.md
+      - Rendering: capy-integration/samples/08-rendering.md
+      - Concio bundle: capy-integration/samples/09-concio-bundle.md
+    - AI authoring: capy-integration/22-ai-authoring.md
+    - Editor tooling: capy-integration/23-editor-tooling.md
+    - Testing & CI: capy-integration/24-testing-ci.md
+    - Troubleshooting: capy-integration/25-troubleshooting.md
+    - Roadmap: capy-integration/26-roadmap.md
   - Reference:
     - Architecture: architecture.md
     - Actions: actions.md

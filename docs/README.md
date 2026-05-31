@@ -40,9 +40,15 @@ Protocol over WebSocket) — no chromedriver, no Selenium server.
 | [configuration.md](configuration.md) | Every `WEBTASKS_*` environment variable and launcher CLI flag. |
 | [cli.md](cli.md) | The `executor` command reference (`commands.yaml`). |
 
+### Capy integration (proposed)
+
+- **[capy-integration/index.md](capy-integration/index.md)** — 26-chapter guide
+  for replacing YAML task files with a [Capy](https://github.com/olivierdevelops/capy)
+  DSL: grammar proposal, Go embedding, migration, and 9 sample projects.
+
 ### Example bundles
 
-- **[../demo/README.md](../demo/README.md)** — 14 runnable demo tasks across 7
+- **[../demo/README.md](../demo/README.md)** — 38 runnable demo tasks across 11
   categories, each exercising a different engine feature.
 - **[../concio/README.md](../concio/README.md)** — a real-world bundle that
   scrapes a logged-in Concio (Starise IM) account, including encrypted-blob

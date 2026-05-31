@@ -6,7 +6,7 @@
 **Browser-automation as a service.** One Go binary, a folder of YAML tasks, and
 every task becomes a typed HTTP endpoint.
 
-📖 **[Full documentation & demos → olivierdevelops.github.io/webtasks](https://olivierdevelops.github.io/webtasks/)**
+📖 **[Full documentation → olivierdevelops.github.io/webtasks](https://olivierdevelops.github.io/webtasks/)** · **[Capy integration guide](https://olivierdevelops.github.io/webtasks/capy-integration/)**
 
 Built on **chromedp** (Chrome DevTools Protocol). No chromedriver, no Selenium,
 no JVM — a single ~17 MB static binary talks to Chrome directly.
@@ -135,6 +135,7 @@ The server **hot-reloads YAML on every request** — edit, re-call, no restart.
 | Doc | Link |
 |---|---|
 | **Site home (MkDocs)** | [olivierdevelops.github.io/webtasks](https://olivierdevelops.github.io/webtasks/) |
+| **Capy integration (proposed)** | [docs/capy-integration/](docs/capy-integration/index.md) |
 | Getting started | [docs/getting-started.md](docs/getting-started.md) |
 | Demo catalogue (38 tasks) | [docs/demos/](docs/demos/) |
 | Build your own task | [docs/build-your-own-task.md](docs/build-your-own-task.md) |

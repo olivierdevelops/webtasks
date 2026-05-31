@@ -8,6 +8,7 @@ Ship selectors and Chrome internals on the server. Callers send JSON, get JSON b
 
 [:octicons-rocket-24: Get started](getting-started.md){ .md-button .md-button--primary }
 [:octicons-play-24: Browse demos](demos/index.md){ .md-button }
+[:octicons-code-24: Capy integration](capy-integration/index.md){ .md-button }
 [:octicons-mark-github-16: GitHub](https://github.com/olivierdevelops/webtasks){ .md-button }
 
 </div>
@@ -232,6 +233,7 @@ Production-grade bundle example.
 | See every `run:` keyword | [Actions reference](actions.md) |
 | Integrate via HTTP | [HTTP API](http-api.md) |
 | Deploy to production | [Bundle](bundle.md) · [Configuration](configuration.md) |
+| Replace YAML with Capy DSL | [Capy integration guide](capy-integration/index.md) |
 | Extend the engine | [Architecture](architecture.md) · Cookbook §12 |
 
 ---
