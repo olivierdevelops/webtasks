@@ -1,0 +1,10 @@
+# basics/inline-js — inline JavaScript on the page
+task "basics/inline-js"
+    pool default
+    timeout 20000
+    transport rest
+    input url string default "https://example.com"
+    input label string default "demo"
+    goto "{{url}}"
+    js info args ["{{label}}"] return ({ label: arguments[0], url: location.href, title: document.title, linkCount: document.querySelectorAll("a").length })
+end

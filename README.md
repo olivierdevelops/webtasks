@@ -29,18 +29,31 @@ installed — chromedp drives an external browser.
 
 ## 30-second quick start
 
+Run a single recipe straight from the terminal — no server, no setup:
+
 ```bash
-# grab the demo bundle (38 example tasks) and start the server
 git clone --depth 1 https://github.com/olivierdevelops/webtasks ~/webtasks
+webtasks run ~/webtasks/capy/demos/01-basics-title.webtask
+```
+
+```json
+{ "page": { "title": "Example Domain", "heading": "Example Domain" } }
+```
+
+Or serve a whole bundle over HTTP and call tasks from anything:
+
+```bash
 WEBTASKS_BUNDLE=~/webtasks/demo webtasks &
 
-# run a task
 curl -s -X POST http://127.0.0.1:8765/tasks/basics/title \
   -H 'Content-Type: application/json' -d '{}' | python3 -m json.tool
 ```
 
-```json
-{ "ok": true, "data": { "page": { "title": "Example Domain" } } }
+Package your own folder of recipes into a deployable bundle:
+
+```bash
+webtasks bundle ./my-recipes dist/bundle.zip
+WEBTASKS_BUNDLE=dist/bundle.zip webtasks
 ```
 
 ---

@@ -113,11 +113,12 @@ per `js` step.)
 
 ### Packaging
 
-Ship a portable distribution — a static binary plus a zipped bundle — that runs
-on any host with Chrome:
+Ship a portable distribution — the binary plus a zipped bundle — that runs on
+any host with Chrome. `webtasks bundle` transpiles your `.webtask` recipes to
+YAML and zips them with your scripts and config:
 
 ```bash
-executor package        # → dist/webtasks (static ELF) + dist/bundle.zip
+webtasks bundle ./my-recipes dist/bundle.zip
 ```
 
 The same binary serves *any* deployment — point `WEBTASKS_BUNDLE` at a different

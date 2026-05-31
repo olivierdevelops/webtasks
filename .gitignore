@@ -2,6 +2,7 @@
 /build/
 /dist/
 /site/
+/cmd/webtasks/webtasks
 
 # Go
 *.exe

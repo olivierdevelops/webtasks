@@ -1,0 +1,10 @@
+task "backend/export-csv"
+    pool default
+    timeout 30000
+    transport rest
+    goto "https://example.com"
+    extract page from "html"
+        title text "title"
+    end
+    export csv path "/tmp/webtasks-demo/title.csv" data "{{page}}"
+end

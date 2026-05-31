@@ -1,0 +1,7 @@
+task "control/set-return"
+    pool default
+    timeout 15000
+    transport rest
+    set greeting "hello from webtask"
+    return "{{greeting}}"
+end

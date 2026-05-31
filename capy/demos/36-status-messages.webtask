@@ -1,0 +1,11 @@
+task "demo/status-messages"
+    pool default
+    timeout 15000
+    transport rest
+    status "Opening site"
+    goto "https://example.com"
+    status "Reading heading"
+    extract page from "html"
+        heading text "h1"
+    end
+end

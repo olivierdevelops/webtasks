@@ -1,0 +1,8 @@
+task "js-modules/meta-tags"
+    pool default
+    timeout 20000
+    transport rest
+    goto "https://example.com"
+    wait until "head" timeout 10000
+    js tags fn "demo/meta-tags.js"
+end

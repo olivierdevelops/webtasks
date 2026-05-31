@@ -1,0 +1,20 @@
+task "interaction/form-fill"
+    pool default
+    timeout 30000
+    transport rest
+    input custname  string default "Ada Lovelace"
+    input custtel   string default "555-0100"
+    input custemail string default "ada@example.com"
+    input comments  string default "hi from webtasks"
+    goto "https://httpbin.org/forms/post"
+    wait until "form input[name='custname']" timeout 10000
+    sendkeys "input[name='custname']" keys "{{custname}}"
+    sendkeys "input[name='custtel']" keys "{{custtel}}"
+    sendkeys "input[name='custemail']" keys "{{custemail}}"
+    sendkeys "textarea[name='comments']" keys "{{comments}}"
+    click "form button"
+    wait until "pre" timeout 10000
+    extract echoed from "html"
+        body text "pre"
+    end
+end

@@ -1,0 +1,9 @@
+task "rendering/emulate-dark"
+    pool default
+    timeout 30000
+    transport rest
+    emulate dark
+    goto "https://example.com"
+    wait until "body" timeout 10000
+    screenshot dark selector "body"
+end

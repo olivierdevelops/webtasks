@@ -1,0 +1,7 @@
+task "rendering/html-to-pdf"
+    pool default
+    timeout 30000
+    transport rest
+    input path string default "/tmp/webtasks-demo/from-html.pdf"
+    html to pdf out content "<h1>Hello</h1><p>From webtask source.</p>" path "{{path}}"
+end

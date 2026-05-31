@@ -1,0 +1,12 @@
+task "crawl/quotes-paginated"
+    pool default
+    timeout 30000
+    transport rest
+    goto "https://quotes.toscrape.com/page/1/"
+    wait until ".quote" timeout 10000
+    extract quotes from ".quote" repeat
+        text   text ".text"
+        author text ".author"
+        tags   text ".tag"
+    end
+end

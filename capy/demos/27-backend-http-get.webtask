@@ -1,0 +1,7 @@
+task "backend/http-get"
+    pool default
+    timeout 20000
+    transport rest
+    http GET resp url "https://httpbin.org/get?demo=webtask"
+    return "{{resp}}"
+end

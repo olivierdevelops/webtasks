@@ -1,0 +1,11 @@
+task "crawl/trending-papers"
+    pool default
+    timeout 45000
+    transport rest
+    goto "https://paperswithcode.com/trending"
+    wait until "article" timeout 15000
+    extract papers from "article" repeat
+        title text "h2"
+        link  attr href on "a"
+    end
+end

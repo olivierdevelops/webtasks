@@ -1,0 +1,9 @@
+task "rendering/snapshot"
+    pool default
+    timeout 30000
+    transport rest
+    input path string default "/tmp/webtasks-demo/snapshot.mhtml"
+    goto "https://example.com"
+    wait until "body" timeout 10000
+    snapshot snap path "{{path}}"
+end

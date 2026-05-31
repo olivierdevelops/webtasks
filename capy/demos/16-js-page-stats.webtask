@@ -1,0 +1,9 @@
+task "js-modules/page-stats"
+    pool default
+    timeout 20000
+    transport rest
+    input url string default "https://example.com"
+    goto "{{url}}"
+    wait until "body" timeout 10000
+    js stats fn "demo/page-stats.js"
+end

@@ -1,0 +1,8 @@
+task "demo/click-by-text"
+    pool default
+    timeout 25000
+    transport rest
+    goto "https://example.com"
+    wait until "a" timeout 10000
+    click "a" text "More information..." match contains
+end

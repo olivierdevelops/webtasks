@@ -1,0 +1,12 @@
+task "search/hn-search"
+    pool default
+    timeout 25000
+    transport rest
+    input q string default "capy"
+    goto "https://hn.algolia.com/?q={{q}}"
+    wait until ".Hit" timeout 12000
+    extract hits from ".Hit" repeat
+        title text ".Hit-title"
+        url   attr href on ".Hit-title a"
+    end
+end

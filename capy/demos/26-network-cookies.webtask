@@ -1,0 +1,10 @@
+task "network/cookies"
+    pool default
+    timeout 30000
+    transport rest
+    goto "https://httpbin.org/cookies/set/session/abc123"
+    wait until "body" timeout 10000
+    set cookies [{ name: "demo", value: "1", domain: "httpbin.org" }]
+    get cookies jar
+    return "{{jar}}"
+end

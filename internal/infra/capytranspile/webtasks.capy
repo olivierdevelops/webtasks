@@ -1,0 +1,967 @@
+# webtasks.capy — grammar library (Capy). Task recipes use .webtask extension.
+# https://github.com/olivierdevelops/capy
+#
+#   capy check capy/webtasks.capy capy/demos/01-basics-title.webtask
+#   capy run capy/webtasks.capy capy/demos/01-basics-title.webtask
+
+extension yaml
+
+description "webtask language (.webtask sources) transpiles to YAML TaskDef"
+
+comments
+    line "#"
+end
+
+context
+    name ""
+    poolTag "default"
+    transports []
+    timeoutMs 60000
+    setupTask ""
+    input {}
+    flow []
+    _yamlExtra ""
+    _inputYaml ""
+    blockDo []
+    _status ""
+    _record false
+    _extractFields {}
+    _extractRepeat false
+end
+
+# --- Types -------------------------------------------------------------------
+
+type PoolTag
+    options "default" "concio" "colab"
+end
+
+type Transport
+    options "rest" "sse" "websocket" "async"
+end
+
+type InputType
+    options "string" "int" "bool" "float"
+end
+
+type FieldKind
+    options "text" "attr" "html" "const"
+end
+
+type Transform
+    options "trim" "lower" "upper" "int" "long"
+end
+
+type ScrollDirection
+    options "down" "up"
+end
+
+type PdfFormat
+    options "Letter" "Legal" "A4" "A3" "letter" "legal" "a4" "a3"
+end
+
+type ExportFormat
+    options "csv" "ndjson" "md" "markdown" "md-table"
+end
+
+type HttpMethod
+    options "GET" "POST" "PUT" "PATCH" "DELETE" "get" "post" "put" "patch" "delete"
+end
+
+function end
+end
+
+# --- Task wrapper ------------------------------------------------------------
+
+function task
+    description "One automation recipe per file."
+    arg literal "task"
+    arg capture slug string
+    block_closer end
+    set context.name slug
+end
+
+# --- Metadata ----------------------------------------------------------------
+
+function pool
+    arg literal "pool"
+    arg capture tag PoolTag
+    set context.poolTag tag
+end
+
+function timeout
+    arg literal "timeout"
+    arg capture ms int
+    set context.timeoutMs ms
+end
+
+function transport
+    arg literal "transport"
+    arg capture t Transport
+    append context.transports t
+end
+
+function setup
+    arg literal "setup"
+    arg capture name string
+    set context.setupTask name
+end
+
+function input_line
+    description "input NAME TYPE"
+    arg literal "input"
+    arg capture in_name ident
+    arg capture in_type InputType
+    set context.input[in_name] { type: in_type, required: false, default: "", doc: "" }
+end
+
+function input_required
+    priority 10
+    arg literal "input"
+    arg capture in_name ident
+    arg capture in_type InputType
+    arg literal "required"
+    set context.input[in_name] { type: in_type, required: true, default: "", doc: "" }
+end
+
+function input_default
+    priority 10
+    arg literal "input"
+    arg capture in_name ident
+    arg capture in_type InputType
+    arg literal "default"
+    arg capture defval string
+    set context.input[in_name] { type: in_type, required: false, default: defval, doc: "" }
+end
+
+function input_doc
+    priority 10
+    arg literal "input"
+    arg capture in_name ident
+    arg capture in_type InputType
+    arg literal "doc"
+    arg capture docstr string
+    set context.input[in_name] { type: in_type, required: false, default: "", doc: docstr }
+end
+
+function input_default_doc
+    priority 10
+    arg literal "input"
+    arg capture in_name ident
+    arg capture in_type InputType
+    arg literal "default"
+    arg capture defval string
+    arg literal "doc"
+    arg capture docstr string
+    set context.input[in_name] { type: in_type, required: false, default: defval, doc: docstr }
+end
+
+function input_required_doc
+    priority 15
+    arg literal "input"
+    arg capture in_name ident
+    arg capture in_type InputType
+    arg literal "required"
+    arg literal "doc"
+    arg capture docstr string
+    set context.input[in_name] { type: in_type, required: true, default: "", doc: docstr }
+end
+
+function status
+    arg literal "status"
+    arg capture text string
+    set context._status text
+end
+
+function record_next
+    arg literal "record"
+    set context._record true
+end
+
+# --- Navigation & timing -----------------------------------------------------
+
+function wait_until_timeout
+    priority 65
+    arg literal "wait"
+    arg literal "until"
+    arg capture selector string
+    arg literal "timeout"
+    arg capture timeoutMs int
+    append context.flow {
+        run: "wait-for",
+        status: context._status,
+        params: { selector: selector, timeoutMs: timeoutMs }
+    }
+    set context._status ""
+end
+
+function wait_until
+    priority 60
+    arg literal "wait"
+    arg literal "until"
+    arg capture selector string
+    append context.flow {
+        run: "wait-for",
+        status: context._status,
+        params: { selector: selector, timeoutMs: 10000 }
+    }
+    set context._status ""
+end
+
+function wait
+    priority 1
+    arg literal "wait"
+    arg capture ms int
+    append context.flow { run: "wait", params: { duration: ms } }
+end
+
+function goto
+    arg literal "goto"
+    arg capture url string
+    append context.flow {
+        run: "goto",
+        status: context._status,
+        record: context._record,
+        params: { url: url }
+    }
+    set context._status ""
+    set context._record false
+end
+
+function do_goto
+    priority 20
+    arg literal "do"
+    arg literal "goto"
+    arg capture url string
+    append context.blockDo {
+        run: "goto",
+        status: context._status,
+        params: { url: url }
+    }
+    set context._status ""
+end
+
+function wait
+    arg literal "wait"
+    arg capture ms int
+    append context.flow { run: "wait", params: { duration: ms } }
+end
+
+function do_wait
+    priority 20
+    arg literal "do"
+    arg literal "wait"
+    arg capture ms int
+    append context.blockDo { run: "wait", params: { duration: ms } }
+end
+
+function wait-for
+    priority 5
+    arg literal "wait-for"
+    arg capture selector string
+    append context.flow {
+        run: "wait-for",
+        status: context._status,
+        params: { selector: selector, timeoutMs: 10000 }
+    }
+    set context._status ""
+end
+
+function wait-for_timeout
+    priority 10
+    arg literal "wait-for"
+    arg capture selector string
+    arg literal "timeout"
+    arg capture timeoutMs int
+    append context.flow {
+        run: "wait-for",
+        status: context._status,
+        params: { selector: selector, timeoutMs: timeoutMs }
+    }
+    set context._status ""
+end
+
+function do_wait-for_timeout
+    priority 30
+    arg literal "do"
+    arg literal "wait-for"
+    arg capture selector string
+    arg literal "timeout"
+    arg capture timeoutMs int
+    append context.blockDo {
+        run: "wait-for",
+        params: { selector: selector, timeoutMs: timeoutMs }
+    }
+end
+
+function wait_network_idle
+    priority 55
+    arg literal "wait"
+    arg literal "network"
+    arg literal "idle"
+    arg capture idleMs int
+    arg literal "timeout"
+    arg capture timeoutMs int
+    append context.flow {
+        run: "wait-for-network-idle",
+        params: { idleMs: idleMs, timeoutMs: timeoutMs }
+    }
+end
+
+function wait-network-idle
+    priority 55
+    arg literal "wait-network-idle"
+    arg capture idleMs int
+    arg literal "timeout"
+    arg capture timeoutMs int
+    append context.flow {
+        run: "wait-for-network-idle",
+        params: { idleMs: idleMs, timeoutMs: timeoutMs }
+    }
+end
+
+function do_wait-network-idle
+    priority 20
+    arg literal "do"
+    arg literal "wait-network-idle"
+    arg capture idleMs int
+    arg literal "timeout"
+    arg capture timeoutMs int
+    append context.blockDo {
+        run: "wait-for-network-idle",
+        params: { idleMs: idleMs, timeoutMs: timeoutMs }
+    }
+end
+
+# --- Interaction -------------------------------------------------------------
+
+function sendkeys
+    arg literal "sendkeys"
+    arg capture selector string
+    arg literal "keys"
+    arg capture keys string
+    append context.flow {
+        run: "sendkeys",
+        params: { selector: selector, keys: keys }
+    }
+end
+
+function do_sendkeys
+    priority 20
+    arg literal "do"
+    arg literal "sendkeys"
+    arg capture selector string
+    arg literal "keys"
+    arg capture keys string
+    append context.blockDo {
+        run: "sendkeys",
+        params: { selector: selector, keys: keys }
+    }
+end
+
+function click
+    arg literal "click"
+    arg capture selector string
+    append context.flow {
+        run: "action",
+        params: { action: "click", selector: selector }
+    }
+end
+
+function do_click
+    priority 20
+    arg literal "do"
+    arg literal "click"
+    arg capture selector string
+    append context.blockDo {
+        run: "action",
+        params: { action: "click", selector: selector }
+    }
+end
+
+function click_text
+    priority 10
+    arg literal "click"
+    arg capture selector string
+    arg literal "text"
+    arg capture text string
+    append context.flow {
+        run: "action",
+        params: { action: "click", selector: selector, text: text, match: "exact" }
+    }
+end
+
+function click_text_match
+    priority 15
+    arg literal "click"
+    arg capture selector string
+    arg literal "text"
+    arg capture text string
+    arg literal "match"
+    arg capture match ident
+    append context.flow {
+        run: "action",
+        params: { action: "click", selector: selector, text: text, match: match }
+    }
+end
+
+function scroll_until_stable
+    priority 50
+    arg literal "scroll"
+    arg literal "until"
+    arg literal "stable"
+    arg capture selector string
+    arg literal "direction"
+    arg capture direction ScrollDirection
+    arg literal "stable"
+    arg capture stableMs int
+    arg literal "max"
+    arg capture maxIterations int
+    append context.flow {
+        run: "scroll-until-stable",
+        params: {
+            selector: selector,
+            direction: direction,
+            stableMs: stableMs,
+            maxIterations: maxIterations
+        }
+    }
+end
+
+function scroll-until-stable
+    priority 50
+    arg literal "scroll-until-stable"
+    arg capture selector string
+    arg literal "direction"
+    arg capture direction ScrollDirection
+    arg literal "stable"
+    arg capture stableMs int
+    arg literal "max"
+    arg capture maxIterations int
+    append context.flow {
+        run: "scroll-until-stable",
+        params: {
+            selector: selector,
+            direction: direction,
+            stableMs: stableMs,
+            maxIterations: maxIterations
+        }
+    }
+end
+
+function do_scroll-until-stable
+    priority 20
+    arg literal "do"
+    arg literal "scroll-until-stable"
+    arg capture selector string
+    arg literal "direction"
+    arg capture direction ScrollDirection
+    arg literal "stable"
+    arg capture stableMs int
+    arg literal "max"
+    arg capture maxIterations int
+    append context.blockDo {
+        run: "scroll-until-stable",
+        params: {
+            selector: selector,
+            direction: direction,
+            stableMs: stableMs,
+            maxIterations: maxIterations
+        }
+    }
+end
+
+# --- Extract -----------------------------------------------------------------
+
+function extract
+    arg literal "extract"
+    arg capture as_name ident
+    arg literal "from"
+    arg capture selector string
+    block_closer end
+    append context.flow {
+        run: "extract",
+        as: as_name,
+        status: context._status,
+        params: {
+            selector: selector,
+            repeat: context._extractRepeat,
+            fields: context._extractFields
+        }
+    }
+    set context._extractFields {}
+    set context._extractRepeat false
+    set context._status ""
+end
+
+function extract_repeat
+    priority 10
+    arg literal "extract"
+    arg capture as_name ident
+    arg literal "from"
+    arg capture selector string
+    arg literal "repeat"
+    block_closer end
+    set context._extractRepeat true
+    append context.flow {
+        run: "extract",
+        as: as_name,
+        status: context._status,
+        params: {
+            selector: selector,
+            repeat: true,
+            fields: context._extractFields
+        }
+    }
+    set context._extractFields {}
+    set context._extractRepeat false
+    set context._status ""
+end
+
+function field_text
+    arg capture fname ident
+    arg literal "text"
+    arg capture selector string
+    append context._extractFields[fname] { kind: "text", selector: selector }
+end
+
+function field_text_trim
+    priority 10
+    arg capture fname ident
+    arg literal "text"
+    arg capture selector string
+    arg literal "trim"
+    append context._extractFields[fname] {
+        kind: "text",
+        selector: selector,
+        transform: "trim"
+    }
+end
+
+function field_attr
+    arg capture fname ident
+    arg literal "attr"
+    arg capture attr ident
+    arg literal "on"
+    arg capture selector string
+    append context._extractFields[fname] {
+        kind: "attr",
+        selector: selector,
+        name: attr
+    }
+end
+
+function field_html
+    arg capture fname ident
+    arg literal "html"
+    arg capture selector string
+    append context._extractFields[fname] { kind: "html", selector: selector }
+end
+
+function field_const
+    arg capture fname ident
+    arg literal "const"
+    arg capture value string
+    append context._extractFields[fname] { kind: "const", value: value }
+end
+
+# --- JavaScript --------------------------------------------------------------
+
+function js_fn
+    arg literal "js"
+    arg capture as_name ident
+    arg literal "fn"
+    arg capture path string
+    append context.flow {
+        run: "js",
+        as: as_name,
+        params: { fn: path }
+    }
+end
+
+function js_fn_args
+    priority 10
+    arg literal "js"
+    arg capture as_name ident
+    arg literal "fn"
+    arg capture path string
+    arg literal "args"
+    arg capture args any
+    append context.flow {
+        run: "js",
+        as: as_name,
+        params: { fn: path, args: args }
+    }
+end
+
+function js_tail
+    description "Inline JS: js NAME SCRIPT… (rest of line is the script source)"
+    arg literal "js"
+    arg capture as_name ident
+    arg capture script tail
+    append context.flow {
+        run: "js",
+        as: as_name,
+        params: { script: script }
+    }
+end
+
+function js_tail_args
+    priority 10
+    arg literal "js"
+    arg capture as_name ident
+    arg literal "args"
+    arg capture args any
+    arg capture script tail
+    append context.flow {
+        run: "js",
+        as: as_name,
+        params: { args: args, script: script }
+    }
+end
+
+function do_js_tail
+    priority 25
+    arg literal "do"
+    arg literal "js"
+    arg capture as_name ident
+    arg capture script tail
+    append context.blockDo {
+        run: "js",
+        as: as_name,
+        params: { script: script }
+    }
+end
+
+function do_emit
+    priority 20
+    arg literal "do"
+    arg literal "emit"
+    arg capture kind ident
+    arg capture text string
+    arg literal "data"
+    arg capture data any
+    append context.blockDo {
+        run: "emit-event",
+        params: { kind: kind, text: text, data: data }
+    }
+end
+
+# --- Rendering ---------------------------------------------------------------
+
+function screenshot
+    arg literal "screenshot"
+    arg capture as_name ident
+    append context.flow {
+        run: "screenshot",
+        as: as_name,
+        params: { selector: "." }
+    }
+end
+
+function screenshot_sel
+    priority 10
+    arg literal "screenshot"
+    arg capture as_name ident
+    arg literal "selector"
+    arg capture selector string
+    append context.flow {
+        run: "screenshot",
+        as: as_name,
+        params: { selector: selector }
+    }
+end
+
+function pdf
+    arg literal "pdf"
+    arg capture as_name ident
+    arg literal "path"
+    arg capture path string
+    arg literal "format"
+    arg capture format PdfFormat
+    append context.flow {
+        run: "pdf",
+        as: as_name,
+        params: { path: path, format: format, printBackground: true }
+    }
+end
+
+function html_to_pdf
+    priority 50
+    arg literal "html"
+    arg literal "to"
+    arg literal "pdf"
+    arg capture as_name ident
+    arg literal "content"
+    arg capture html string
+    arg literal "path"
+    arg capture path string
+    append context.flow {
+        run: "html-to-pdf",
+        as: as_name,
+        params: { html: html, path: path }
+    }
+end
+
+function html-to-pdf
+    priority 50
+    arg literal "html-to-pdf"
+    arg capture as_name ident
+    arg literal "html"
+    arg capture html string
+    arg literal "path"
+    arg capture path string
+    append context.flow {
+        run: "html-to-pdf",
+        as: as_name,
+        params: { html: html, path: path }
+    }
+end
+
+function snapshot
+    arg literal "snapshot"
+    arg capture as_name ident
+    arg literal "path"
+    arg capture path string
+    append context.flow {
+        run: "snapshot",
+        as: as_name,
+        params: { path: path }
+    }
+end
+
+function emulate_color
+    arg literal "emulate"
+    arg capture scheme ident
+    append context.flow {
+        run: "emulate",
+        params: { colorScheme: scheme }
+    }
+end
+
+function save_html
+    priority 50
+    arg literal "save"
+    arg literal "html"
+    arg literal "path"
+    arg capture path string
+    append context.flow { run: "save-html", params: { path: path } }
+end
+
+function save-html
+    priority 50
+    arg literal "save-html"
+    arg literal "path"
+    arg capture path string
+    append context.flow { run: "save-html", params: { path: path } }
+end
+
+# Block actions (capture-network, console, record, loop) finalize via steps:
+# nested lines use `do goto`, `do js`, etc. Post-process `steps` → `do` in Go/CI.
+
+# --- Network & session -------------------------------------------------------
+
+function get_cookies
+    priority 50
+    arg literal "get"
+    arg literal "cookies"
+    arg capture as_name ident
+    append context.flow { run: "get-cookies", as: as_name }
+end
+
+function get-cookies
+    priority 50
+    arg literal "get-cookies"
+    arg capture as_name ident
+    append context.flow { run: "get-cookies", as: as_name }
+end
+
+function set_cookies
+    priority 50
+    arg literal "set"
+    arg literal "cookies"
+    arg capture cookies any
+    append context.flow { run: "set-cookies", params: { cookies: cookies } }
+end
+
+function set-cookies
+    priority 50
+    arg literal "set-cookies"
+    arg capture cookies any
+    append context.flow { run: "set-cookies", params: { cookies: cookies } }
+end
+
+function http-request
+    priority 30
+    arg literal "http"
+    arg capture method HttpMethod
+    arg capture as_name ident
+    arg literal "url"
+    arg capture url string
+    append context.flow {
+        run: "http-request",
+        as: as_name,
+        params: { method: method, url: url }
+    }
+end
+
+function http_post
+    priority 50
+    arg literal "http"
+    arg literal "post"
+    arg capture as_name ident
+    arg literal "url"
+    arg capture url string
+    arg literal "body"
+    arg capture body any
+    append context.flow {
+        run: "http-request",
+        as: as_name,
+        params: { method: "POST", url: url, body: body }
+    }
+end
+
+function http-post
+    priority 50
+    arg literal "http-post"
+    arg capture as_name ident
+    arg literal "url"
+    arg capture url string
+    arg literal "body"
+    arg capture body any
+    append context.flow {
+        run: "http-request",
+        as: as_name,
+        params: { method: "POST", url: url, body: body }
+    }
+end
+
+function download_each
+    priority 50
+    arg literal "download"
+    arg literal "each"
+    arg capture as_name ident
+    arg literal "selector"
+    arg capture selector string
+    append context.flow {
+        run: "download-each",
+        as: as_name,
+        params: { selector: selector }
+    }
+end
+
+function download-each
+    priority 50
+    arg literal "download-each"
+    arg capture as_name ident
+    arg literal "selector"
+    arg capture selector string
+    append context.flow {
+        run: "download-each",
+        as: as_name,
+        params: { selector: selector }
+    }
+end
+
+# --- Control flow & data -----------------------------------------------------
+
+function call
+    arg literal "call"
+    arg capture target string
+    append context.flow { run: "call", params: { task: target } }
+end
+
+function return
+    arg literal "return"
+    arg capture value string
+    append context.flow { run: "return", params: { value: value } }
+end
+
+function bind_var
+    priority 50
+    description "Bind a variable: bind NAME VALUE"
+    arg literal "bind"
+    arg capture name ident
+    arg capture value string
+    append context.flow { run: "set", params: { name: name, value: value } }
+end
+
+function let_var
+    priority 50
+    description "Bind a variable: let NAME VALUE"
+    arg literal "let"
+    arg capture name ident
+    arg capture value string
+    append context.flow { run: "set", params: { name: name, value: value } }
+end
+
+function set_var
+    priority 20
+    arg literal "set"
+    arg capture name ident
+    arg capture value string
+    append context.flow { run: "set", params: { name: name, value: value } }
+end
+
+function export_data
+    arg literal "export"
+    arg capture format ExportFormat
+    arg literal "path"
+    arg capture path string
+    arg literal "data"
+    arg capture data string
+    append context.flow {
+        run: "export",
+        params: { format: format, path: path, data: data }
+    }
+end
+
+function read_file
+    priority 50
+    arg literal "read"
+    arg literal "file"
+    arg capture as_name ident
+    arg literal "path"
+    arg capture path string
+    append context.flow {
+        run: "read-file",
+        as: as_name,
+        params: { path: path }
+    }
+end
+
+function read-file
+    priority 50
+    arg literal "read-file"
+    arg capture as_name ident
+    arg literal "path"
+    arg capture path string
+    append context.flow {
+        run: "read-file",
+        as: as_name,
+        params: { path: path }
+    }
+end
+
+function emit
+    arg literal "emit"
+    arg capture kind ident
+    arg capture text string
+    arg literal "data"
+    arg capture data any
+    append context.flow {
+        run: "emit-event",
+        params: { kind: kind, text: text, data: data }
+    }
+end
+
+# --- YAML output -------------------------------------------------------------
+
+file_template
+    write `name: ${toQuoted context.name}
+poolTag: ${toQuoted context.poolTag}
+timeoutMs: ${context.timeoutMs}
+transports: ${toJSON context.transports}
+${context._yamlExtra}input: ${toJSONIndent context.input}
+flow: ${toJSONIndent context.flow}
+`
+end

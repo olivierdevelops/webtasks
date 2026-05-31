@@ -1,0 +1,13 @@
+task "search/duckduckgo"
+    pool default
+    timeout 25000
+    transport rest
+    input q string default "chromedp" doc "Search query"
+    goto "https://duckduckgo.com/?q={{q}}"
+    wait until "article[data-testid='result'], #links .result" timeout 12000
+    extract results from "article[data-testid='result'], #links .result" repeat
+        title   text "h2"
+        url     attr href on "a"
+        snippet text "[data-testid='result-snippet'], .result__snippet"
+    end
+end

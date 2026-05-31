@@ -1,0 +1,7 @@
+task "backend/http post"
+    pool default
+    timeout 20000
+    transport rest
+    http post resp url "https://httpbin.org/post" body { hello: "webtask" }
+    return "{{resp}}"
+end

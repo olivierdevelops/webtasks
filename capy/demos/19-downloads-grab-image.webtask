@@ -1,0 +1,8 @@
+task "downloads/grab-image"
+    pool default
+    timeout 30000
+    transport rest
+    goto "https://httpbin.org/image/png"
+    wait until "body" timeout 10000
+    download each files selector "a"
+end

@@ -768,6 +768,11 @@ func buildExtractSpec(p map[string]any) domain.ExtractSpec {
 	}
 	if raw, ok := p["fields"].(map[string]any); ok {
 		for name, fdef := range raw {
+			// The capy transpiler emits each field spec as a single-element
+			// list; hand-written YAML uses a bare object. Accept both.
+			if lst, ok := fdef.([]any); ok && len(lst) > 0 {
+				fdef = lst[0]
+			}
 			fm, _ := fdef.(map[string]any)
 			spec.Fields[name] = domain.ExtractFieldSpec{
 				Kind:       asStringOr(fm["kind"], "text"),

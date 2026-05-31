@@ -1,0 +1,14 @@
+task "crawl/wikipedia-toc"
+    pool default
+    timeout 25000
+    transport rest
+    goto "https://en.wikipedia.org/wiki/Web_scraping"
+    wait until "#toc" timeout 15000
+    extract toc from "#toc"
+        title text ".toctitle"
+    end
+    extract links from "#toc li" repeat
+        text text "a"
+        href attr href on "a"
+    end
+end

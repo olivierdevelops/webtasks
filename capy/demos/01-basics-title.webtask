@@ -1,0 +1,17 @@
+# Demo 01 — smallest task: open a page, read title and headings
+
+task "basics/title"
+    pool default
+    timeout 15000
+    transport rest
+
+    status "Visiting example.com"
+    goto "https://example.com"
+
+    status "Reading title and heading"
+    extract page from "html"
+        title   text "title"
+        heading text "h1"
+        body    text "p"
+    end
+end

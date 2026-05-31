@@ -1,0 +1,8 @@
+task "basics/screenshot"
+    pool default
+    timeout 20000
+    transport rest
+    goto "https://example.com"
+    wait until "body" timeout 10000
+    screenshot shot selector "body"
+end

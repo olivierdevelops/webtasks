@@ -1,0 +1,10 @@
+task "rendering/pdf"
+    pool default
+    timeout 30000
+    transport rest
+    input url string default "https://example.com"
+    input path string default "/tmp/webtasks-demo/example.pdf"
+    goto "{{url}}"
+    wait until "body" timeout 10000
+    pdf pdf path "{{path}}" format A4
+end

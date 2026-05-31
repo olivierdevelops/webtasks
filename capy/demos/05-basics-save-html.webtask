@@ -1,0 +1,9 @@
+task "basics/save-html"
+    pool default
+    timeout 20000
+    transport rest
+    input path string default "/tmp/webtasks-demo/page.html"
+    goto "https://example.com"
+    wait until "body" timeout 10000
+    save html path "{{path}}"
+end

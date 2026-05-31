@@ -1,0 +1,6 @@
+task "demo/pool-concio"
+    pool concio
+    timeout 60000
+    transport rest
+    goto "https://example.com"
+end

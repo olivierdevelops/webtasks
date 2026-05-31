@@ -1,0 +1,7 @@
+task "control/call"
+    pool default
+    timeout 30000
+    transport rest
+    call "basics/title"
+    return "{{page.title}}"
+end

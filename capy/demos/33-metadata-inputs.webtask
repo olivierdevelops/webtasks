@@ -1,0 +1,8 @@
+task "demo/metadata-inputs"
+    pool default
+    timeout 15000
+    transport rest
+    input q string required doc "Required search query"
+    input limit string default "5"
+    goto "https://example.com/?q={{q}}"
+end

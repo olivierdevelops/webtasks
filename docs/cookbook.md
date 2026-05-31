@@ -249,15 +249,15 @@ Declare a static mount in the bundle that exposes the downloads directory:
 
 ## 11. Ship a deployment bundle {#11-deployment-bundle}
 
-The binary contains no config. Ship it alongside a bundle:
+The binary contains no config. Package your recipes into a bundle and ship the
+two together:
 
 ```bash
-executor package
-# → dist/webtasks      (static binary)
-# → dist/bundle.zip    (your tasks/, scripts/, config)
+webtasks bundle ./my-recipes dist/bundle.zip
+# → dist/bundle.zip    (your recipes transpiled to YAML, plus scripts/ + config)
 
 # On the target host (Chrome installed):
-WEBTASKS_BUNDLE=$(pwd)/bundle.zip webtasks
+WEBTASKS_BUNDLE=$(pwd)/dist/bundle.zip webtasks
 ```
 
 The same binary serves any deployment — supply a different bundle to change

@@ -1,0 +1,13 @@
+task "crawl/hackernews-top"
+    pool default
+    timeout 20000
+    transport rest
+    goto "https://news.ycombinator.com"
+    wait until "tr.athing" timeout 10000
+    extract stories from "tr.athing" repeat
+        rank  text ".rank" trim
+        title text ".titleline > a"
+        url   attr href on ".titleline > a"
+        site  text ".sitestr"
+    end
+end

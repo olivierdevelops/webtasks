@@ -1,0 +1,16 @@
+# basics/wait-then-click — navigate, wait, click, extract
+task "basics/wait-then-click"
+    pool default
+    timeout 25000
+    transport rest
+
+    goto "https://httpbin.org/links/3/0"
+    wait until "a" timeout 10000
+    click "a"
+    wait until "a" timeout 10000
+    extract after from "html"
+        url   attr href on "."
+        title text "title"
+        links html "body"
+    end
+end

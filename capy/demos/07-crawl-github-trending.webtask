@@ -1,0 +1,15 @@
+task "crawl/github-trending"
+    pool default
+    timeout 30000
+    transport rest
+    input language string default ""
+    input since string default "daily"
+    goto "https://github.com/trending/{{language}}?since={{since}}"
+    wait until "article.Box-row" timeout 15000
+    extract repos from "article.Box-row" repeat
+        name        text "h2 a"
+        url         attr href on "h2 a"
+        description text "p"
+        stars       text "a.Link--muted"
+    end
+end

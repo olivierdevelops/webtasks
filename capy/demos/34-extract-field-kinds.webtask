@@ -1,0 +1,12 @@
+task "demo/extract-field-kinds"
+    pool default
+    timeout 20000
+    transport rest
+    goto "https://example.com"
+    extract sample from "html"
+        title   text "title"
+        version attr href on "link[rel='icon']"
+        body    html "body"
+        source  const "example.com"
+    end
+end

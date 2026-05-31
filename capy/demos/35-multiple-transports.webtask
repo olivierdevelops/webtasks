@@ -1,0 +1,8 @@
+task "demo/multiple-transports"
+    pool default
+    timeout 15000
+    transport rest
+    transport sse
+    transport websocket
+    goto "https://example.com"
+end

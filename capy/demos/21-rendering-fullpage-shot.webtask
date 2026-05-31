@@ -1,0 +1,9 @@
+task "rendering/fullpage-shot"
+    pool default
+    timeout 30000
+    transport rest
+    input url string default "https://example.com"
+    goto "{{url}}"
+    wait until "body" timeout 10000
+    screenshot full selector "html"
+end

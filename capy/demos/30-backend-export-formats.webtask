@@ -1,0 +1,8 @@
+task "backend/export-formats"
+    pool default
+    timeout 20000
+    transport rest
+    set items "sample-data"
+    export ndjson path "/tmp/out.ndjson" data "{{items}}"
+    export md path "/tmp/out.md" data "# demo"
+end

@@ -1,0 +1,16 @@
+task "streaming/progress"
+    pool default
+    timeout 30000
+    transport rest
+    transport sse
+    status "Step 1 — navigate"
+    goto "https://example.com"
+    emit progress "navigation complete" data { fraction: 0.25 }
+    wait 1000
+    emit progress "pause finished" data { fraction: 0.5 }
+    extract page from "html"
+        title text "title"
+    end
+    emit progress "extracted title" data { fraction: 0.75 }
+    wait 500
+end

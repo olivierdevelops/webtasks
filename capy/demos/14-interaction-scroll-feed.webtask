@@ -1,0 +1,14 @@
+task "interaction/scroll-feed"
+    pool default
+    timeout 60000
+    transport rest
+    input maxScrolls string default "10"
+    input stableMs string default "1500"
+    goto "https://infinite-scroll.com/demo/full-page/"
+    wait until ".article" timeout 15000
+    scroll until stable "html" direction down stable 1500 max 10
+    extract articles from ".article" repeat
+        title text "h2"
+        date  text ".date-published"
+    end
+end

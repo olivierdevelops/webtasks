@@ -1,0 +1,11 @@
+task "network/idle"
+    pool default
+    timeout 40000
+    transport rest
+    input url string default "https://quotes.toscrape.com"
+    goto "{{url}}"
+    wait network idle 800 timeout 20000
+    extract page from "html"
+        title text "title"
+    end
+end

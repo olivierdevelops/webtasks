@@ -1,0 +1,7 @@
+task "demo/read file"
+    pool default
+    timeout 10000
+    transport rest
+    read file content path "/etc/hosts"
+    return "{{content}}"
+end

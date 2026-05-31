@@ -1,0 +1,17 @@
+# Multi-step search + extract — shows inputs, status, wait, extract repeat
+task "demo/complex-search-flow"
+    pool default
+    timeout 35000
+    transport rest
+    transport sse
+    input q string default "web scraping" doc "Query"
+    status "Searching"
+    goto "https://duckduckgo.com/?q={{q}}"
+    wait until "[data-testid='result']" timeout 15000
+    status "Collecting results"
+    extract rows from "[data-testid='result']" repeat
+        title text "h2"
+        href  attr href on "a"
+    end
+    emit progress "done" data { count: "{{rows}}" }
+end
