@@ -1,0 +1,25 @@
+# Pull every <a href> from a page (up to `limit`) using a reusable JS module.
+#
+#   executor call js-modules/all-links '{"url":"https://example.com"}'
+#   executor call js-modules/all-links '{"url":"https://wikipedia.org","limit":20}'
+name: "js-modules/all-links"
+poolTag: "default"
+transports: ["rest"]
+timeoutMs: 20000
+
+input:
+  url:   { type: string, required: false, default: "https://example.com" }
+  limit: { type: int,    required: false, default: 50 }
+
+flow:
+  - run: goto
+    params: { url: "{{url}}" }
+
+  - run: wait-for
+    params: { selector: "body", timeoutMs: 10000 }
+
+  - run: js
+    as: links
+    params:
+      fn: "demo/all-links"
+      args: ["{{limit}}"]

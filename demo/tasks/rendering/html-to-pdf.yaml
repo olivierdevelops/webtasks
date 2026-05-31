@@ -1,0 +1,26 @@
+# Render an inline HTML string straight to PDF — no live site needed.
+# (For Markdown, build the HTML with a CDN marked.js script first.)
+#
+#   executor call rendering/html-to-pdf
+name: "rendering/html-to-pdf"
+poolTag: "default"
+transports: ["rest"]
+timeoutMs: 20000
+
+input:
+  html:
+    type: string
+    required: false
+    default: "<h1>webtasks</h1><p>Generated straight from an HTML string.</p>"
+  path:
+    type: string
+    required: false
+    default: "/tmp/webtasks-demo/inline.pdf"
+
+flow:
+  - run: html-to-pdf
+    params:
+      html: "{{html}}"
+      css: "body{font-family:sans-serif;margin:2rem}"
+      path: "{{path}}"
+      format: "A4"

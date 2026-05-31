@@ -1,0 +1,38 @@
+# Record a GIF of a flow segment: the `do:` steps run while the screen is
+# captured, and the frames are assembled into an animated GIF.
+#
+#   executor call recording/record
+name: "recording/record"
+poolTag: "default"
+transports: ["rest"]
+timeoutMs: 60000
+
+input:
+  url:
+    type: string
+    required: false
+    default: "https://quotes.toscrape.com"
+  path:
+    type: string
+    required: false
+    default: "/tmp/webtasks-demo/flow.gif"
+  format:
+    type: string
+    required: false
+    default: "gif"
+    doc: "gif (default) or mp4 (needs ffmpeg on PATH)"
+
+flow:
+  - run: goto
+    params: { url: "{{url}}" }
+  - run: record
+    as: clip
+    params:
+      format: "{{format}}"
+      path: "{{path}}"
+      fps: 4
+    do:
+      - run: scroll-until-stable
+        params: { selector: "body", direction: down, stableMs: 800, maxIterations: 8 }
+      - run: wait
+        params: { duration: "500" }

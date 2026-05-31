@@ -1,0 +1,32 @@
+# Scrape a list, then export it as CSV with the `export` action.
+#
+#   executor call backend/export-csv
+name: "backend/export-csv"
+poolTag: "default"
+transports: ["rest"]
+timeoutMs: 30000
+
+input:
+  path:
+    type: string
+    required: false
+    default: "/tmp/webtasks-demo/quotes.csv"
+
+flow:
+  - run: goto
+    params: { url: "https://quotes.toscrape.com" }
+  - run: extract
+    as: quotes
+    params:
+      selector: ".quote"
+      repeat: true
+      fields:
+        text:   { kind: text, selector: ".text" }
+        author: { kind: text, selector: ".author" }
+  - run: export
+    as: csv
+    params:
+      data: "{{quotes}}"
+      format: "csv"
+      columns: ["author", "text"]
+      path: "{{path}}"

@@ -1,0 +1,31 @@
+# Demonstrate the navigate -> wait-for -> click chain. Uses an httpbin route
+# that just renders a link we can follow.
+#
+#   executor call basics/wait-then-click
+name: "basics/wait-then-click"
+poolTag: "default"
+transports: ["rest"]
+timeoutMs: 25000
+
+flow:
+  - run: goto
+    params: { url: "https://httpbin.org/links/3/0" }
+
+  - run: wait-for
+    params: { selector: "a", timeoutMs: 10000 }
+
+  - run: action
+    params: { action: click, selector: "a" }
+
+  - run: wait-for
+    params: { selector: "a", timeoutMs: 10000 }
+
+  - run: extract
+    as: after
+    params:
+      selector: "html"
+      repeat: false
+      fields:
+        url:   { kind: attr, selector: ".", name: "data-url" }
+        title: { kind: text, selector: "title" }
+        links: { kind: html, selector: "body" }

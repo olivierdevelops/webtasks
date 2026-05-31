@@ -1,0 +1,35 @@
+# Generic "scroll a container until it stops loading" pattern. Uses a sample
+# infinite-scroll demo page; works as a template for any feed-style UI.
+#
+#   executor call interaction/scroll-feed
+name: "interaction/scroll-feed"
+poolTag: "default"
+transports: ["rest"]
+timeoutMs: 60000
+
+input:
+  maxScrolls: { type: int, required: false, default: 10 }
+  stableMs:   { type: int, required: false, default: 1500 }
+
+flow:
+  - run: goto
+    params: { url: "https://infinite-scroll.com/demo/full-page/" }
+
+  - run: wait-for
+    params: { selector: ".article", timeoutMs: 15000 }
+
+  - run: scroll-until-stable
+    params:
+      selector: "html"
+      direction: down
+      stableMs:  "{{stableMs}}"
+      maxIterations: "{{maxScrolls}}"
+
+  - run: extract
+    as: articles
+    params:
+      selector: ".article"
+      repeat: true
+      fields:
+        title: { kind: text, selector: "h2" }
+        date:  { kind: text, selector: ".date-published" }

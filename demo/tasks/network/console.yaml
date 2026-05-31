@@ -1,0 +1,18 @@
+# Collect console.* output emitted while the wrapped steps run.
+#
+#   executor call network/console
+name: "network/console"
+poolTag: "default"
+transports: ["rest"]
+timeoutMs: 20000
+
+flow:
+  - run: goto
+    params: { url: "https://example.com" }
+  - run: console
+    as: logs
+    do:
+      - run: js
+        params: { script: "console.log('hello from console'); console.warn('a warning'); return 1;" }
+  - run: return
+    params: { value: "{{logs}}" }

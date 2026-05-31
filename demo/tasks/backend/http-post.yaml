@@ -1,0 +1,18 @@
+# POST a JSON body to an echo endpoint and read it back — exercises
+# http-request with a map body (auto-JSON-encoded) and json parsing.
+#
+#   executor call backend/http-post
+name: "backend/http-post"
+poolTag: "default"
+transports: ["rest"]
+timeoutMs: 30000
+
+flow:
+  - run: http-request
+    as: resp
+    params:
+      method: "POST"
+      url: "https://httpbin.org/post"
+      body: { hello: "world", n: 7 }
+  - run: return
+    params: { value: "{{resp.json}}" }

@@ -1,0 +1,32 @@
+# Emulate a mobile device in dark mode, then screenshot — shows the `emulate`
+# action (device metrics + prefers-color-scheme).
+#
+#   executor call rendering/emulate-dark
+name: "rendering/emulate-dark"
+poolTag: "default"
+transports: ["rest"]
+timeoutMs: 30000
+
+input:
+  url:
+    type: string
+    required: false
+    default: "https://example.com"
+  path:
+    type: string
+    required: false
+    default: "/tmp/webtasks-demo/mobile-dark.png"
+
+flow:
+  - run: emulate
+    params:
+      width: 390
+      height: 844
+      mobile: true
+      colorScheme: "dark"
+  - run: goto
+    params: { url: "{{url}}" }
+  - run: wait-for
+    params: { selector: "body", timeoutMs: 10000 }
+  - run: screenshot
+    params: { fullPage: true, path: "{{path}}" }

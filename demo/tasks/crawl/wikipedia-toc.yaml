@@ -1,0 +1,35 @@
+# Extract a Wikipedia article's section index from the TOC.
+#
+#   executor call crawl/wikipedia-toc '{"article":"Go (programming language)"}'
+name: "crawl/wikipedia-toc"
+poolTag: "default"
+transports: ["rest"]
+timeoutMs: 20000
+
+input:
+  article: { type: string, required: false, default: "Go (programming language)", doc: "Page title, spaces ok" }
+
+flow:
+  - run: goto
+    params: { url: "https://en.wikipedia.org/wiki/{{article}}" }
+
+  - run: wait-for
+    params: { selector: "#firstHeading", timeoutMs: 10000 }
+
+  - run: extract
+    as: page
+    params:
+      selector: "html"
+      repeat: false
+      fields:
+        title: { kind: text, selector: "#firstHeading" }
+        lead:  { kind: text, selector: "#mw-content-text p" }
+
+  - run: extract
+    as: sections
+    params:
+      selector: ".mw-heading h2"
+      repeat: true
+      fields:
+        title: { kind: text, selector: "." }
+        id:    { kind: attr, selector: ".", name: "id" }

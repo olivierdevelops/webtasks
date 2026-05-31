@@ -1,0 +1,23 @@
+name: "examples/trending-papers"
+poolTag: "default"
+transports: ["rest"]
+timeoutMs: 60000
+
+flow:
+  - status: "Visiting Hugging Face trending papers"
+    run: goto
+    params: { url: "https://huggingface.co/papers/trending" }
+
+  - status: "Waiting for page to settle"
+    run: wait-for
+    params: { selector: "h1", timeoutMs: 10000 }
+
+  - status: "Extracting paper titles"
+    run: extract
+    as: papers
+    params:
+      selector: "article h3 a, article h2 a, article h1 a"
+      repeat: true
+      fields:
+        title: { kind: text, selector: "." }
+        href:  { kind: attr, selector: ".", name: "href" }

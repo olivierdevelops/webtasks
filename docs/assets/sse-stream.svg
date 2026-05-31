@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 340" role="img" aria-label="SSE event stream">
+  <defs>
+    <style>
+      @keyframes slideIn {
+        0% { transform: translateX(-12px); opacity: 0; }
+        100% { transform: translateX(0); opacity: 1; }
+      }
+      .event { animation: slideIn 0.5s ease-out forwards; opacity: 0; }
+      .event:nth-child(2) { animation-delay: 0.4s; }
+      .event:nth-child(3) { animation-delay: 0.8s; }
+      .event:nth-child(4) { animation-delay: 1.2s; }
+      .event:nth-child(5) { animation-delay: 1.6s; }
+      .evt-box { fill: #fff; stroke: #3949ab; stroke-width: 1.5; }
+      .kind { font: 600 11px monospace; fill: #3949ab; }
+      .data { font: 11px monospace; fill: #546e7a; }
+    </style>
+  </defs>
+  <rect width="520" height="340" rx="10" fill="#eceff1"/>
+  <text x="260" y="28" text-anchor="middle" font="600 14px system-ui,sans-serif" fill="#263238">Server-Sent Events  streaming/progress</text>
+  <text x="260" y="48" text-anchor="middle" font="12px system-ui,sans-serif" fill="#78909c">Accept: text/event-stream</text>
+
+  <g class="event" transform="translate(40,70)">
+    <rect class="evt-box" width="440" height="40" rx="6"/>
+    <text class="kind" x="12" y="25">event: status</text>
+    <text class="data" x="130" y="25">Step 1 of 4  navigate</text>
+  </g>
+  <g class="event" transform="translate(40,120)">
+    <rect class="evt-box" width="440" height="40" rx="6"/>
+    <text class="kind" x="12" y="25">event: progress</text>
+    <text class="data" x="130" y="25">{"fraction": 0.25, "text": "navigation complete"}</text>
+  </g>
+  <g class="event" transform="translate(40,170)">
+    <rect class="evt-box" width="440" height="40" rx="6"/>
+    <text class="kind" x="12" y="25">event: status</text>
+    <text class="data" x="130" y="25">Step 3 of 4  read title</text>
+  </g>
+  <g class="event" transform="translate(40,220)">
+    <rect class="evt-box" width="440" height="40" rx="6"/>
+    <text class="kind" x="12" y="25">event: progress</text>
+    <text class="data" x="130" y="25">{"fraction": 0.75, "text": "extracted title"}</text>
+  </g>
+  <g class="event" transform="translate(40,270)">
+    <rect class="evt-box" width="440" height="40" rx="6" fill="#e8f5e9" stroke="#43a047"/>
+    <text class="kind" x="12" y="25" fill="#2e7d32">event: done</text>
+    <text class="data" x="130" y="25">{"ok": true, "data": {"page": {"title": "Example Domain"}}}</text>
+  </g>
+</svg>

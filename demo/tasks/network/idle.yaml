@@ -1,0 +1,21 @@
+# Navigate, wait until the network goes quiet, then read the title — exercises
+# wait-for-network-idle as a standalone step.
+#
+#   executor call network/idle
+name: "network/idle"
+poolTag: "default"
+transports: ["rest"]
+timeoutMs: 30000
+
+flow:
+  - run: goto
+    params: { url: "https://quotes.toscrape.com" }
+  - run: wait-for-network-idle
+    params: { idleMs: 800, timeoutMs: 20000 }
+  - run: extract
+    as: page
+    params:
+      selector: "html"
+      fields:
+        title: { kind: text, selector: "title" }
+        firstQuote: { kind: text, selector: ".quote .text" }

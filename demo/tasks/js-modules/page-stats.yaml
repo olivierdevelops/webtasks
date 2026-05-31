@@ -1,0 +1,21 @@
+# Get a quick DOM-stats summary of any URL.
+#
+#   executor call js-modules/page-stats '{"url":"https://news.ycombinator.com"}'
+name: "js-modules/page-stats"
+poolTag: "default"
+transports: ["rest"]
+timeoutMs: 20000
+
+input:
+  url: { type: string, required: false, default: "https://news.ycombinator.com" }
+
+flow:
+  - run: goto
+    params: { url: "{{url}}" }
+
+  - run: wait-for
+    params: { selector: "body", timeoutMs: 10000 }
+
+  - run: js
+    as: stats
+    params: { fn: "demo/page-stats" }

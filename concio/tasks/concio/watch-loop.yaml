@@ -1,0 +1,36 @@
+# Continuous Concio watch: a while-loop that re-runs concio/watch every
+# `intervalMs`, so the output directory stays current. Each cycle only touches
+# chats that changed (concio/watch is incremental + resumable), and emits a
+# status event — stream it with Accept: text/event-stream to watch live.
+#
+#   executor call concio/watch-loop '{"intervalMs":120000}'
+name: "concio/watch-loop"
+poolTag: "concio"
+transports: ["sse", "rest"]
+timeoutMs: 86400000
+setupTask: "concio/setup"
+
+input:
+  out:
+    type: string
+    required: false
+    default: ".ignore/data"
+  intervalMs:
+    type: int
+    required: false
+    default: 60000
+    doc: "Pause between watch cycles."
+
+flow:
+  - status: "Starting Concio watch loop"
+    run: loop
+    params:
+      pauseMs: "{{intervalMs}}"
+      maxIterations: 100000
+    do:
+      - run: emit-event
+        params:
+          kind: "status"
+          text: "watch cycle {{loop_index}}"
+      - run: call
+        params: { task: "concio/watch" }

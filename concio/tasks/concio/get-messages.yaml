@@ -1,0 +1,88 @@
+# Open one chat by its visible name, scroll back to the start of history,
+# extract every message row. The Python client groups these into per-day
+# JSON files matching the rag-ingestion scanner's filename schema.
+#
+#   executor call concio/get-messages '{"peerName":"Nicholas Huang"}'
+#   executor call concio/get-messages '{"peerName":"X","maxScrolls":5,"stableMs":2000}'
+name: "concio/get-messages"
+poolTag: "concio"
+transports: ["rest", "sse"]
+timeoutMs: 900000
+setupTask: "concio/setup"
+
+input:
+  peerName:
+    type: string
+    required: true
+    doc: "Display name from the sidebar chat list (e.g. 'Nicholas Huang')."
+  maxScrolls:
+    type: int
+    required: false
+    default: 0
+    doc: "Cap on scroll-up iterations (0 = unbounded until full history loaded)."
+  stableMs:
+    type: int
+    required: false
+    default: 2500
+    doc: "Stop scrolling once scrollHeight stops growing for this long."
+
+flow:
+  - status: "Opening chat for {{peerName}}"
+    run: action
+    params:
+      action: click
+      selector: ".chat-list-inner .name"
+      text: "{{peerName}}"
+      closest: ".chat-list-inner"
+
+  - status: "Waiting for message panel"
+    run: wait-for
+    params: { selector: ".chats.chat-content-scroll", timeoutMs: 15000 }
+
+  - status: "Letting initial messages render"
+    run: wait
+    params: { duration: "1_500" }
+
+  - status: "Scrolling up to load full history"
+    run: scroll-until-stable
+    params:
+      selector: ".chats.chat-content-scroll"
+      direction: up
+      stableMs: "{{stableMs}}"
+      maxIterations: "{{maxScrolls}}"
+
+  - status: "Resolving peer container id"
+    run: extract
+    as: chat
+    params:
+      selector: ".chats.chat-content-scroll"
+      repeat: false
+      fields:
+        containerId: { kind: attr, selector: ".", name: "id" }
+
+  - status: "Extracting messages"
+    run: extract
+    as: messages
+    params:
+      selector: ".chatList"
+      repeat: true
+      fields:
+        domId:          { kind: attr, selector: ".",                       name: "id" }
+        mediaType:      { kind: attr, selector: ".",                       name: "data-media-type" }
+        # First child of .chat-middle-datetime is the timestamp (or "Today"/
+        # "Yesterday"/"Mon, 05/18" for date separators); second child holds
+        # the system-message text when data-media-type="sysMsg".
+        middleFirst:    { kind: text, selector: ".chat-middle-datetime > div:first-child" }
+        middleSecond:   { kind: text, selector: ".chat-middle-datetime > div:nth-child(2)" }
+        contentTypeIn:  { kind: attr, selector: ".chat-left [data-contenttype]",  name: "data-contenttype" }
+        contentTypeOut: { kind: attr, selector: ".chat-right [data-contenttype]", name: "data-contenttype" }
+        contentLeft:    { kind: text, selector: ".chat-left-box-message" }
+        contentRight:   { kind: text, selector: ".chat-right-box-message" }
+        # Quote/reply rows put their text inside .reply-msg .max3line.
+        replyLeft:      { kind: text, selector: ".chat-left .reply-msg .max3line, .chat-left .reply-msg .historyText" }
+        replyRight:     { kind: text, selector: ".chat-right .reply-msg .max3line, .chat-right .reply-msg .historyText" }
+        timestampLeft:  { kind: text, selector: ".chat-left-box-timestamp" }
+        timestampRight: { kind: text, selector: ".chat-right-box-timestamp" }
+        senderName:     { kind: text, selector: ".chat-left-box-avatar [alt], .chat-left .name, .chat-left .titleName" }
+        fileNameLeft:   { kind: text, selector: ".chat-left-file-box-text-file-name" }
+        fileNameRight:  { kind: text, selector: ".chat-right-file-box-text-file-name" }

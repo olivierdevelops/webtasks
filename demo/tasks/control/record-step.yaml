@@ -1,0 +1,17 @@
+# Per-step `record: true` — screencasts a single step so a failing tool can be
+# inspected. Here the click targets a selector that does not exist: the step
+# fails, but the error names a GIF path under $TMPDIR/webtasks-recordings/ and
+# a `recording` event is emitted.
+#
+#   executor call control/record-step
+name: "control/record-step"
+poolTag: "default"
+transports: ["rest"]
+timeoutMs: 30000
+
+flow:
+  - run: goto
+    params: { url: "https://example.com" }
+  - run: wait-for
+    record: true
+    params: { selector: "#this-selector-does-not-exist", timeoutMs: 4000 }

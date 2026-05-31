@@ -1,0 +1,359 @@
+name: "webtasks"
+commands:
+    # Compile the Go binary into ./build/webtasks.
+    #   executor build
+    build:
+        script: |-
+          cd "{{CWD}}" && go build -o build/webtasks ./cmd/webtasks && ls -lh build/webtasks
+
+    # Boot the HTTP server with the in-repo bundle. Inject secrets from `sm`
+    # so secrets.yaml resolves them via env.
+    # Env overrides: WEBTASKS_HOST, WEBTASKS_PORT, WEBTASKS_HEADLESS,
+    #                WEBTASKS_BUNDLE, WEBTASKS_DOWNLOADS_DIR
+    #   executor server
+    #   WEBTASKS_HEADLESS=true executor server
+    server:
+        script: |-
+          set -e
+          cd "{{CWD}}"
+          go build -o build/webtasks ./cmd/webtasks
+          # Default to the demo bundle (lots of tasks to try). Override with
+          # WEBTASKS_BUNDLE=… to point at any other directory or .zip.
+          : "${WEBTASKS_BUNDLE:=$(pwd)/demo}"
+          # Run headless by default; flip with WEBTASKS_HEADLESS=false to
+          # watch Chrome in a real window (useful while authoring tasks).
+          : "${WEBTASKS_HEADLESS:=true}"
+          export WEBTASKS_BUNDLE WEBTASKS_HEADLESS
+          echo "[webtasks] bundle:   $WEBTASKS_BUNDLE"
+          echo "[webtasks] headless: $WEBTASKS_HEADLESS"
+          # exec sm exec --
+          ./build/webtasks
+
+    # Show server health (pool status, task count).
+    #   executor health
+    health:
+        script: |-
+          port="${WEBTASKS_PORT:-8765}"
+          curl -s "http://127.0.0.1:$port/health" | python3 -m json.tool
+
+    # List registered tasks (loaded from the current bundle).
+    #   executor list-tasks
+    list-tasks:
+        script: |-
+          port="${WEBTASKS_PORT:-8765}"
+          curl -s "http://127.0.0.1:$port/tasks" | python3 -m json.tool
+
+    # Invoke a registered task by name with an optional JSON body.
+    # Use `stream=true` to receive server-sent events instead of waiting.
+    #   executor call examples/trending-papers
+    #   executor call examples/trending-papers '{"q":"chromedp"}'
+    #   executor call concio/get-messages '{"peerName":"Nicholas Huang"}' true
+    call:
+        args:
+            name:
+                type: string
+                index: 0
+                required: true
+                description: "Task name (e.g. examples/trending-papers)"
+            body:
+                type: string
+                index: 1
+                default: "{}"
+                description: "JSON request body"
+            stream:
+                type: string
+                index: 2
+                default: "false"
+                description: "true to stream via SSE; otherwise sync REST"
+        script: |-
+          port="${WEBTASKS_PORT:-8765}"
+          name="{{.name}}"
+          body="{{.body}}"; body="${body:-{}}"
+          stream="{{.stream}}"
+          if [ -z "$name" ]; then echo "usage: executor call <name> [body] [stream]" >&2; exit 2; fi
+          # Probe the server first so missing/wrong port gives a clear error
+          # instead of an empty curl body that crashes python json.tool.
+          if ! curl -sf -m 2 "http://127.0.0.1:$port/health" -o /dev/null; then
+            echo "no server responding on http://127.0.0.1:$port — start it with 'executor server' (or set WEBTASKS_PORT)" >&2
+            exit 1
+          fi
+          if [ "$stream" = "true" ]; then
+            exec curl -sS -N -X POST "http://127.0.0.1:$port/tasks/$name" \
+                 -H 'Accept: text/event-stream' \
+                 -H 'Content-Type: application/json' \
+                 -d "$body"
+          fi
+          out=$(curl -sS -X POST "http://127.0.0.1:$port/tasks/$name" \
+                     -H 'Content-Type: application/json' \
+                     -d "$body")
+          if [ -z "$out" ]; then
+            echo "empty response from server" >&2
+            exit 1
+          fi
+          echo "$out" | python3 -m json.tool
+
+    # Pack the in-repo bundle into a zip the universal binary can load at
+    # runtime via WEBTASKS_BUNDLE=…
+    #   executor bundle
+    #   executor bundle /tmp/myconfigs.zip
+    bundle:
+        args:
+            out:
+                type: string
+                index: 0
+                default: "dist/bundle.zip"
+                description: "Output zip path"
+        script: |-
+          set -e
+          cd "{{CWD}}"
+          out="{{.out}}"; out="${out:-dist/bundle.zip}"
+          case "$out" in /*) abs="$out" ;; *) abs="$PWD/$out" ;; esac
+          mkdir -p "$(dirname "$abs")"
+          rm -f "$abs"
+          (cd bundle-example && zip -r "$abs" . -x '*.swp' '*~' >/dev/null)
+          echo "Built:"
+          ls -lh "$abs"
+          echo
+          echo "Run with: WEBTASKS_BUNDLE=$abs $PWD/build/webtasks"
+
+    # Build a portable distribution: stripped static Go binary + zipped bundle
+    # in ./dist/. Copy the dist/ folder anywhere; run with WEBTASKS_BUNDLE.
+    #   executor package
+    package:
+        script: |-
+          set -e
+          cd "{{CWD}}"
+          mkdir -p dist
+          CGO_ENABLED=0 go build -trimpath -ldflags '-s -w' -o dist/webtasks ./cmd/webtasks
+          abs="$PWD/dist/bundle.zip"
+          rm -f "$abs"
+          (cd bundle-example && zip -r "$abs" . -x '*.swp' '*~' >/dev/null)
+          chmod +x dist/webtasks
+          echo "Built:"
+          ls -lh dist/webtasks dist/bundle.zip
+          echo
+          echo "Run from anywhere:"
+          echo "  WEBTASKS_BUNDLE=$PWD/dist/bundle.zip $PWD/dist/webtasks"
+
+    # Remove build outputs.
+    #   executor clean
+    clean:
+        script: |-
+          cd "{{CWD}}" && rm -rf build dist && echo "cleaned"
+
+    # ── Concio workflow ─────────────────────────────────────────────────
+    #
+    # One-shot Concio test: builds the binary, boots the server against the
+    # concio/ bundle, waits for it to be ready, runs one Concio task streaming
+    # live progress, then shuts the server down. Self-contained — nothing left
+    # running.
+    #
+    # Credentials: the server reads CONCIO_USER / CONCIO_PASSWORD from the
+    # environment. Pass them inline, or — if you keep them in a secret
+    # manager — wrap the whole call so the manager injects them (`sm exec --
+    # executor concio-test …`). concio-test never invokes the manager itself.
+    #
+    #   CONCIO_USER='200 008 6861' CONCIO_PASSWORD='secret' executor concio-test
+    #   sm exec -- executor concio-test watch          # creds from your vault
+    #   executor concio-test watch                     # full incremental sweep
+    #   executor concio-test setup                     # just verify login
+    #   WEBTASKS_HEADLESS=false executor concio-test    # watch Chrome live
+    concio-test:
+        args:
+            task:
+                type: string
+                index: 0
+                default: "list-chats"
+                description: "Concio task to run (list-chats, setup, watch, extract-all, list-groups)"
+            out:
+                type: string
+                index: 1
+                default: ".ignore/data"
+                description: "Output root (used by watch / extract-all)"
+        script: |-
+          set -e
+          cd "{{CWD}}"
+          task="{{.task}}"
+          out="{{.out}}"
+          port="${WEBTASKS_PORT:-8766}"
+          : "${WEBTASKS_HEADLESS:=true}"
+          echo "[concio-test] building..."
+          go build -o build/webtasks ./cmd/webtasks
+          export WEBTASKS_BUNDLE="$(pwd)/concio" WEBTASKS_HEADLESS WEBTASKS_PORT="$port"
+          # Credentials come from the environment (CONCIO_USER /
+          # CONCIO_PASSWORD). concio-test never calls a secret manager itself —
+          # if yours stores them, wrap the call: `sm exec -- executor …`.
+          if [ -z "$CONCIO_USER" ] || [ -z "$CONCIO_PASSWORD" ]; then
+            echo "[concio-test] missing Concio credentials in the environment:" >&2
+            [ -z "$CONCIO_USER" ]     && echo "  - CONCIO_USER is not set" >&2
+            [ -z "$CONCIO_PASSWORD" ] && echo "  - CONCIO_PASSWORD is not set" >&2
+            echo >&2
+            echo "  Pass them inline:" >&2
+            echo "    CONCIO_USER='200 008 6861' CONCIO_PASSWORD='secret' executor concio-test $task" >&2
+            echo "  ...or, if a secret manager holds them, wrap the whole call:" >&2
+            echo "    sm exec -- executor concio-test $task" >&2
+            exit 1
+          fi
+          export CONCIO_USER CONCIO_PASSWORD
+          echo "[concio-test] starting server on :$port (headless=$WEBTASKS_HEADLESS)"
+          # Own process group so the trap reliably kills the server + Chrome.
+          setsid ./build/webtasks > /tmp/concio-test.log 2>&1 &
+          srv=$!
+          trap 'kill -- -$srv 2>/dev/null; kill $srv 2>/dev/null' EXIT INT TERM
+          # Wait for the HTTP server (Chrome pool warm-up can take a while).
+          ready=""
+          for i in $(seq 1 45); do
+            if curl -sf "http://127.0.0.1:$port/health" >/dev/null 2>&1; then ready=1; break; fi
+            if ! kill -0 $srv 2>/dev/null; then
+              echo "[concio-test] server exited early — log:"; cat /tmp/concio-test.log; exit 1
+            fi
+            sleep 1
+          done
+          if [ -z "$ready" ]; then
+            echo "[concio-test] server not ready after 45s — log:"; cat /tmp/concio-test.log; exit 1
+          fi
+          echo "[concio-test] running concio/$task (live SSE) ..."
+          echo "------------------------------------------------------------"
+          curl -sS -N -X POST "http://127.0.0.1:$port/tasks/concio/$task" \
+               -H 'Accept: text/event-stream' -H 'Content-Type: application/json' \
+               -d "$(printf '{"out":"%s"}' "$out")"
+          echo
+          echo "------------------------------------------------------------"
+          echo "[concio-test] done — server shutting down."
+
+    # Boot the server against the concio/ bundle (concio-specific tasks +
+    # JS modules + the CONCIO_PASSWORD secret declaration). Inject via `sm`.
+    #   executor concio-server
+    concio-server:
+        script: |-
+          set -e
+          cd "{{CWD}}"
+          go build -o build/webtasks ./cmd/webtasks
+          export WEBTASKS_BUNDLE="$(pwd)/concio"
+          # Run headless by default; flip with WEBTASKS_HEADLESS=false to
+          # watch the Concio session in a real Chrome window (handy for
+          # debugging a failing login or selector).
+          : "${WEBTASKS_HEADLESS:=true}"
+          export WEBTASKS_HEADLESS
+          echo "[webtasks] bundle:   $WEBTASKS_BUNDLE"
+          echo "[webtasks] headless: $WEBTASKS_HEADLESS"
+          sm exec -- ./build/webtasks
+
+    # Log in (idempotent — no-op if the session is already authenticated).
+    #   executor concio-setup
+    concio-setup:
+        script: |-
+          port="${WEBTASKS_PORT:-8765}"
+          curl -sS -X POST "http://127.0.0.1:$port/tasks/concio/setup" \
+               -H 'Content-Type: application/json' -d '{}' \
+               | python3 -m json.tool
+
+    # Show the 40-ish sidebar chats with last-message previews.
+    #   executor concio-list-chats
+    concio-list-chats:
+        script: |-
+          port="${WEBTASKS_PORT:-8765}"
+          curl -sS -X POST "http://127.0.0.1:$port/tasks/concio/list-chats" \
+               -H 'Content-Type: application/json' -d '{}' \
+               | python3 -m json.tool
+
+    # Dump the "People" contacts directory.
+    #   executor concio-list-contacts
+    concio-list-contacts:
+        script: |-
+          port="${WEBTASKS_PORT:-8765}"
+          curl -sS -X POST "http://127.0.0.1:$port/tasks/concio/list-contacts" \
+               -H 'Content-Type: application/json' -d '{}' \
+               | python3 -m json.tool
+
+    # Dump the "Groups" directory.
+    #   executor concio-list-groups
+    concio-list-groups:
+        script: |-
+          port="${WEBTASKS_PORT:-8765}"
+          curl -sS -X POST "http://127.0.0.1:$port/tasks/concio/list-groups" \
+               -H 'Content-Type: application/json' -d '{}' \
+               | python3 -m json.tool
+
+    # Open one chat, scroll to the start of history, return every message.
+    # Stream live progress over SSE when `stream=true`.
+    #   executor concio-get-messages "Nicholas Huang"
+    #   executor concio-get-messages "Nicholas Huang" 5         # cap scrolls
+    #   executor concio-get-messages "Nicholas Huang" 0 true    # SSE
+    concio-get-messages:
+        args:
+            peer:
+                type: string
+                index: 0
+                required: true
+                description: "Peer name as shown in the sidebar"
+            maxScrolls:
+                type: string
+                index: 1
+                default: "0"
+                description: "Cap on scroll-up iterations (0 = unbounded)"
+            stream:
+                type: string
+                index: 2
+                default: "false"
+                description: "true to stream via SSE"
+        script: |-
+          port="${WEBTASKS_PORT:-8765}"
+          peer="{{.peer}}"
+          maxScrolls="{{.maxScrolls}}"
+          stream="{{.stream}}"
+          body=$(printf '{"peerName":"%s","maxScrolls":%s}' "$peer" "$maxScrolls")
+          if [ "$stream" = "true" ]; then
+            exec curl -sS -N -X POST "http://127.0.0.1:$port/tasks/concio/get-messages" \
+                 -H 'Accept: text/event-stream' -H 'Content-Type: application/json' \
+                 -d "$body"
+          fi
+          curl -sS -X POST "http://127.0.0.1:$port/tasks/concio/get-messages" \
+               -H 'Content-Type: application/json' -d "$body" \
+               | python3 -m json.tool
+
+    # Capture encrypted attachments from one chat — installs the
+    # URL.createObjectURL hook, clicks each file bubble, writes blobs to disk.
+    #   executor concio-capture-files "Nicholas Huang"
+    #   executor concio-capture-files "Nicholas Huang" /tmp/concio-files
+    concio-capture-files:
+        args:
+            peer:
+                type: string
+                index: 0
+                required: true
+                description: "Peer name as shown in the sidebar"
+            outDir:
+                type: string
+                index: 1
+                default: ".ignore/data/files"
+                description: "Server-side directory where blobs are written"
+        script: |-
+          port="${WEBTASKS_PORT:-8765}"
+          peer="{{.peer}}"
+          out="{{.outDir}}"
+          body=$(printf '{"peerName":"%s","outDir":"%s"}' "$peer" "$out")
+          curl -sS -X POST "http://127.0.0.1:$port/tasks/concio/capture-files" \
+               -H 'Content-Type: application/json' -d "$body" \
+               | python3 -m json.tool
+
+    # Run the full server-side Concio extraction (concio/extract-all): sweeps
+    # every chat and writes the <owner>/chats/YYYY/MM/DD tree + mapping files.
+    # No Python client — the engine does it all. Requires `executor
+    # concio-server` running. Streams live progress over SSE.
+    #   executor concio-extract
+    #   executor concio-extract /tmp/concio          # custom output dir
+    concio-extract:
+        args:
+            out:
+                type: string
+                index: 0
+                default: ".ignore/data"
+                description: "Output root directory (server-side)"
+        script: |-
+          port="${WEBTASKS_PORT:-8765}"
+          out="{{.out}}"
+          body=$(printf '{"out":"%s"}' "$out")
+          exec curl -sS -N -X POST "http://127.0.0.1:$port/tasks/concio/extract-all" \
+               -H 'Accept: text/event-stream' -H 'Content-Type: application/json' \
+               -d "$body"

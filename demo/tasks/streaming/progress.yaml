@@ -1,0 +1,49 @@
+# Demo of progress events — every `status:` line and `emit-event` produces an
+# SSE event when the caller sends `Accept: text/event-stream`.
+#
+#   executor call streaming/progress '{}' true       # SSE
+#   executor call streaming/progress                  # sync REST (same shape)
+name: "streaming/progress"
+poolTag: "default"
+transports: ["rest", "sse"]
+timeoutMs: 30000
+
+flow:
+  - status: "Step 1 of 4 — navigate"
+    run: goto
+    params: { url: "https://example.com" }
+
+  - run: emit-event
+    params:
+      kind: "progress"
+      text: "navigation complete"
+      data: { fraction: 0.25 }
+
+  - status: "Step 2 of 4 — pause briefly"
+    run: wait
+    params: { duration: "1_000" }
+
+  - run: emit-event
+    params:
+      kind: "progress"
+      text: "pause finished"
+      data: { fraction: 0.5 }
+
+  - status: "Step 3 of 4 — read title"
+    run: extract
+    as: page
+    params:
+      selector: "html"
+      repeat: false
+      fields:
+        title: { kind: text, selector: "title" }
+
+  - run: emit-event
+    params:
+      kind: "progress"
+      text: "extracted title"
+      data: { fraction: 0.75 }
+
+  - status: "Step 4 of 4 — done"
+    run: wait
+    params: { duration: "500" }

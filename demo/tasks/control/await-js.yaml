@@ -1,0 +1,18 @@
+# `js` with `await: true` — the script runs as an async function and a
+# returned Promise is awaited. Without it, `data.result` would be {} (a
+# pending Promise); with it, the resolved value comes through.
+#
+#   executor call control/await-js
+name: "control/await-js"
+poolTag: "default"
+transports: ["rest"]
+timeoutMs: 20000
+
+flow:
+  - run: goto
+    params: { url: "https://example.com" }
+  - run: js
+    as: result
+    params:
+      await: true
+      script: "await new Promise(r => setTimeout(r, 300)); return 'awaited-ok';"

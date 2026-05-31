@@ -1,0 +1,29 @@
+# Take a viewport screenshot of an arbitrary URL. Returned as base64 PNG
+# under `data.png_b64`.
+#
+#   executor call basics/screenshot '{"url":"https://example.com"}'
+#   curl -s -X POST localhost:8765/tasks/basics/screenshot \
+#     -H 'Content-Type: application/json' -d '{"url":"https://example.com"}' \
+#     | python3 -c 'import json,sys,base64; b=json.load(sys.stdin)["data"]["png_b64"]; open("/tmp/shot.png","wb").write(base64.b64decode(b))'
+name: "basics/screenshot"
+poolTag: "default"
+transports: ["rest"]
+timeoutMs: 20000
+
+input:
+  url:
+    type: string
+    required: false
+    default: "https://example.com"
+    doc: "Page to capture"
+
+flow:
+  - run: goto
+    params: { url: "{{url}}" }
+
+  - run: wait-for
+    params: { selector: "body", timeoutMs: 10000 }
+
+  - run: screenshot
+    as: png_b64
+    params: { selector: "." }

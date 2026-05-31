@@ -1,0 +1,4 @@
+# A single 'default' pool with three windows so a few demos can run in parallel.
+pools:
+  default:
+    size: 3

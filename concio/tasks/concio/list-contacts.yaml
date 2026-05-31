@@ -1,0 +1,22 @@
+# Pulls the contact directory ("People" tab) — names only. Used by the
+# Python client to seed users_mapping.json.
+#
+#   executor call concio/list-contacts
+name: "concio/list-contacts"
+poolTag: "concio"
+transports: ["rest"]
+timeoutMs: 60000
+setupTask: "concio/setup"
+
+flow:
+  - run: wait-for
+    params: { selector: ".leftSide-contact-list-member", timeoutMs: 15000 }
+
+  - status: "Extracting contacts directory"
+    run: extract
+    as: contacts
+    params:
+      selector: ".leftSide-contact-list-member"
+      repeat: true
+      fields:
+        name: { kind: text, selector: ".name" }

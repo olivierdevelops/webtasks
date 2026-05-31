@@ -1,0 +1,105 @@
+# Incremental, resumable Concio message watch.
+#
+# One run: load state.json → find only the chats whose latest message is newer
+# than what we already have → for each, scroll history (stopping at known
+# messages), extract messages + files, and record progress in state.json.
+#
+# Re-running never resets data: per-message files are deterministically named,
+# so re-writes are idempotent and only new messages are added. state.json is
+# rewritten after every chat, so a crash mid-sweep resumes cleanly — finished
+# chats are skipped on the next run.
+#
+#   executor call concio/watch
+#   executor call concio/watch '{"out":"/tmp/concio"}'
+name: "concio/watch"
+poolTag: "concio"
+transports: ["rest", "sse"]
+timeoutMs: 5400000
+setupTask: "concio/setup"
+
+input:
+  out:
+    type: string
+    required: false
+    default: ".ignore/data"
+    doc: "Output root directory (server-side)."
+
+flow:
+  - status: "Loading watch state"
+    run: read-file
+    as: stateRaw
+    params: { path: "{{out}}/state.json", optional: true }
+
+  - run: js
+    params: { fn: "concio/reset-mappings" }
+
+  - run: js
+    params:
+      fn: "concio/seed-state"
+      args: ["{{stateRaw}}"]
+
+  - status: "Finding chats that changed"
+    run: js
+    as: chats
+    params: { fn: "concio/chats-needing-refresh" }
+
+  - status: "Refreshing changed chats"
+    run: for-each
+    params:
+      over: "{{chats}}"
+      as: chat
+      continueOnError: true
+    do:
+      - status: "[{{chat_index}}] {{chat.peerName}}"
+        run: action
+        params:
+          action: click
+          selector: ".chat-list-inner .name"
+          text: "{{chat.peerName}}"
+          closest: ".chat-list-inner"
+
+      - run: wait-for
+        params: { selector: ".chats.chat-content-scroll", timeoutMs: 15000 }
+
+      - run: wait
+        params: { duration: "1_200" }
+
+      - status: "Scrolling history for {{chat.peerName}}"
+        run: js
+        params:
+          fn: "concio/scroll-history"
+          await: true
+          args: ["{{chat.lastTs}}"]
+
+      - run: js
+        as: built
+        params:
+          fn: "concio/build-message-files"
+          args: ["{{CONCIO_USER}}", "{{chat.peerName}}", "{{chat.isGroup}}"]
+
+      - run: write-files
+        params:
+          root: "{{out}}"
+          files: "{{built.files}}"
+
+      - status: "Checkpointing state"
+        run: js
+        as: stateFiles
+        params:
+          fn: "concio/mark-chat-done"
+          args: ["{{chat}}"]
+
+      - run: write-files
+        params:
+          root: "{{out}}"
+          files: "{{stateFiles}}"
+
+  - status: "Writing users_mapping.json + groups_mapping.json"
+    run: js
+    as: maps
+    params: { fn: "concio/collect-mappings" }
+
+  - run: write-files
+    params:
+      root: "{{out}}"
+      files: "{{maps}}"

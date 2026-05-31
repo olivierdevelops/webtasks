@@ -1,0 +1,97 @@
+# Full Concio extraction, end to end, server-side — no external client.
+#
+# Sweeps every sidebar chat: opens it, scrolls history to the top, parses
+# every message row into per-message JSON, and writes the tree the
+# rag-ingestion scanner expects:
+#
+#   <out>/<owner>/chats/<YYYY>/<MM>/<DD>/chat_<owner>_<peer>_<ts>_<mo|mt>_<hi>_<lo>.json
+#   <out>/users_mapping.json
+#   <out>/groups_mapping.json
+#
+# All Concio-specific logic lives in the scripts/concio/*.js modules; the
+# engine only provides the generic for-each / write-files / js / extract
+# actions. `owner` is derived from CONCIO_USER (login id, spaces stripped).
+#
+#   executor call concio/extract-all
+#   executor call concio/extract-all '{"out":"/tmp/concio","maxScrolls":20}'
+name: "concio/extract-all"
+poolTag: "concio"
+transports: ["rest", "sse"]
+timeoutMs: 5400000
+setupTask: "concio/setup"
+
+input:
+  out:
+    type: string
+    required: false
+    default: ".ignore/data"
+    doc: "Output root directory (server-side)."
+  maxScrolls:
+    type: int
+    required: false
+    default: 0
+    doc: "Per-chat scroll-up cap (0 = unbounded, full history)."
+  stableMs:
+    type: int
+    required: false
+    default: 2500
+    doc: "Stop scrolling a chat once scrollHeight is stable this long."
+
+flow:
+  - status: "Resetting in-page mapping accumulators"
+    run: js
+    params: { fn: "concio/reset-mappings" }
+
+  - status: "Enumerating chats"
+    run: js
+    as: chats
+    params: { fn: "concio/enrich-chats" }
+
+  - status: "Sweeping every chat"
+    run: for-each
+    params:
+      over: "{{chats}}"
+      as: chat
+      continueOnError: true
+    do:
+      - status: "[{{chat_index}}] {{chat.peerName}}"
+        run: action
+        params:
+          action: click
+          selector: ".chat-list-inner .name"
+          text: "{{chat.peerName}}"
+          closest: ".chat-list-inner"
+
+      - run: wait-for
+        params: { selector: ".chats.chat-content-scroll", timeoutMs: 15000 }
+
+      - run: wait
+        params: { duration: "1_500" }
+
+      - run: scroll-until-stable
+        params:
+          selector: ".chats.chat-content-scroll"
+          direction: up
+          stableMs: "{{stableMs}}"
+          maxIterations: "{{maxScrolls}}"
+
+      - run: js
+        as: built
+        params:
+          fn: "concio/build-message-files"
+          args: ["{{CONCIO_USER}}", "{{chat.peerName}}", "{{chat.isGroup}}"]
+
+      - run: write-files
+        params:
+          root: "{{out}}"
+          files: "{{built.files}}"
+
+  - status: "Writing users_mapping.json + groups_mapping.json"
+    run: js
+    as: maps
+    params: { fn: "concio/collect-mappings" }
+
+  - run: write-files
+    params:
+      root: "{{out}}"
+      files: "{{maps}}"

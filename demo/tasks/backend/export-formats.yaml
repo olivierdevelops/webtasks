@@ -1,0 +1,26 @@
+# Exercise export ndjson + md-table on a literal list.
+#
+#   executor call backend/export-formats
+name: "backend/export-formats"
+poolTag: "default"
+transports: ["rest"]
+timeoutMs: 15000
+
+flow:
+  - run: set
+    as: rows
+    params:
+      value:
+        - { name: "alpha", n: 1 }
+        - { name: "beta", n: 2 }
+  - run: export
+    as: ndjson
+    params:
+      data: "{{rows}}"
+      format: "ndjson"
+  - run: export
+    as: table
+    params:
+      data: "{{rows}}"
+      format: "md-table"
+      columns: ["name", "n"]

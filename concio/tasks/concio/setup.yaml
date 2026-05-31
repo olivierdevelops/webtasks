@@ -1,0 +1,31 @@
+# Idempotent login flow. Reads the password from {{CONCIO_PASSWORD}} (declared
+# in secrets.yaml so the env/arg/prompt chain resolves it at server startup).
+# After this completes, the Concio window holds an authenticated session
+# that every subsequent task reuses (single-window pool).
+#
+#   executor call concio/setup
+name: "concio/setup"
+poolTag: "concio"
+transports: ["rest"]
+timeoutMs: 60000
+
+flow:
+  - status: "Navigating to Concio (if needed)"
+    run: js
+    as: navigated
+    params: { fn: "concio/navigate-login" }
+
+  - status: "Waiting for login form or chat list"
+    run: wait-for
+    params: { selector: "#loginUserInp, .chat-list-inner", timeoutMs: 30000 }
+
+  - status: "Logging in if needed"
+    run: js
+    as: didLogin
+    params:
+      fn: "concio/login"
+      args: ["{{CONCIO_PASSWORD}}", "{{CONCIO_USER}}"]
+
+  - status: "Waiting for chat list"
+    run: wait-for
+    params: { selector: ".chat-list-inner", timeoutMs: 30000 }

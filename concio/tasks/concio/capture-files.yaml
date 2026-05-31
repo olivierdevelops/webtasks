@@ -1,0 +1,80 @@
+# Open a chat, install the URL.createObjectURL hook, click each file
+# bubble, drain captured blobs to disk. Concio decrypts encrypted files
+# client-side and feeds them through a blob URL — the hook intercepts
+# the bytes before they're handed to the <a download>.
+#
+#   executor call concio/capture-files '{"peerName":"Nicholas Huang","outDir":".ignore/data/files"}'
+name: "concio/capture-files"
+poolTag: "concio"
+transports: ["rest", "sse"]
+timeoutMs: 1200000
+setupTask: "concio/setup"
+
+input:
+  peerName:       { type: string, required: true }
+  # capture-files runs *after* get-messages has already scrolled to the top
+  # of history, so the re-scroll here is usually a no-op. Defaults reflect
+  # that — bump them via input params if you call this task standalone.
+  maxScrolls:     { type: int,    required: false, default: 5 }
+  stableMs:       { type: int,    required: false, default: 1500 }
+  perFileWaitMs:  { type: int,    required: false, default: 6000,
+                    doc: "How long to wait per file for the blob to materialise." }
+  outDir:         { type: string, required: false, default: "build/downloads/captured",
+                    doc: "Server-side directory the saved blobs land in." }
+  naming:         { type: string, required: false, default: "{id}_{name}" }
+
+flow:
+  - status: "Installing URL.createObjectURL hook"
+    run: js
+    params: { fn: "concio/install-download-hook" }
+
+  - status: "Opening chat for {{peerName}}"
+    run: action
+    params:
+      action: click
+      selector: ".chat-list-inner .name"
+      text: "{{peerName}}"
+      closest: ".chat-list-inner"
+
+  - status: "Waiting for message panel"
+    run: wait-for
+    params: { selector: ".chats.chat-content-scroll", timeoutMs: 15000 }
+
+  - status: "Letting initial messages render"
+    run: wait
+    params: { duration: "1_500" }
+
+  - status: "Re-installing hook after navigation"
+    run: js
+    params: { fn: "concio/install-download-hook" }
+
+  - status: "Scrolling up to load full history"
+    run: scroll-until-stable
+    params:
+      selector: ".chats.chat-content-scroll"
+      direction: up
+      stableMs: "{{stableMs}}"
+      maxIterations: "{{maxScrolls}}"
+
+  - status: "Cataloguing file bubbles"
+    run: js
+    as: files
+    params: { fn: "concio/file-bubbles-info" }
+
+  - status: "Native-clicking each file bubble"
+    run: download-each
+    as: clickReport
+    params:
+      selector: ".chats.chat-content-scroll .chat-left-file-box, .chats.chat-content-scroll .chat-right-file-box"
+      timeoutPerFileMs: 2500
+
+  - status: "Waiting for blobs to materialise"
+    run: wait
+    params: { duration: "{{perFileWaitMs}}" }
+
+  - status: "Saving captured blobs to {{outDir}}"
+    run: save-captures-to-dir
+    as: saved
+    params:
+      dir: "{{outDir}}"
+      naming: "{{naming}}"

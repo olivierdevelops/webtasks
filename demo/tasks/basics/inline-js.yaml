@@ -1,0 +1,31 @@
+# Execute an inline JavaScript snippet and return its value. Args from the
+# task input become the page's `arguments` array.
+#
+#   executor call basics/inline-js '{"url":"https://example.com","label":"hi"}'
+name: "basics/inline-js"
+poolTag: "default"
+transports: ["rest"]
+timeoutMs: 20000
+
+input:
+  url:   { type: string, required: false, default: "https://example.com" }
+  label: { type: string, required: false, default: "demo" }
+
+flow:
+  - run: goto
+    params: { url: "{{url}}" }
+
+  - run: js
+    as: info
+    params:
+      args: ["{{label}}"]
+      script: |
+        return {
+          label:     arguments[0],
+          url:       location.href,
+          title:     document.title,
+          linkCount: document.querySelectorAll('a').length,
+          width:     window.innerWidth,
+          height:    window.innerHeight,
+          ua:        navigator.userAgent.slice(0, 80)
+        };

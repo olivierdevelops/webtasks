@@ -1,0 +1,8 @@
+# Generic static-route mounts. Each entry exposes a directory at a URL prefix.
+# `${ENV}` and `${ENV:-default}` placeholders are expanded at startup.
+mounts:
+  - prefix: "/downloads"
+    dir: "${WEBTASKS_DOWNLOADS_DIR:-build/downloads}"
+    list: true
+    serve: true
+    recursive: true

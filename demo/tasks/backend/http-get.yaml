@@ -1,0 +1,23 @@
+# Call an external HTTP API directly (no browser) and return the parsed JSON.
+#
+#   executor call backend/http-get
+name: "backend/http-get"
+poolTag: "default"
+transports: ["rest"]
+timeoutMs: 30000
+
+input:
+  url:
+    type: string
+    required: false
+    default: "https://api.github.com/repos/golang/go"
+
+flow:
+  - run: http-request
+    as: resp
+    params:
+      method: "GET"
+      url: "{{url}}"
+      headers: { Accept: "application/json" }
+  - run: return
+    params: { value: "{{resp.json}}" }

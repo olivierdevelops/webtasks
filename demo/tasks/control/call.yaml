@@ -1,0 +1,14 @@
+# `call` runs another task's flow in the current window — here it reuses
+# basics/title, then returns the title that task produced.
+#
+#   executor call control/call
+name: "control/call"
+poolTag: "default"
+transports: ["rest"]
+timeoutMs: 30000
+
+flow:
+  - run: call
+    params: { task: "basics/title" }
+  - run: return
+    params: { value: "{{page.title}}" }

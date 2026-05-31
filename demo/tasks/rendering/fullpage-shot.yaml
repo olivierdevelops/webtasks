@@ -1,0 +1,27 @@
+# Full-page screenshot (the whole scrollable page, not just the viewport).
+#
+#   executor call rendering/fullpage-shot '{"url":"https://en.wikipedia.org/wiki/Web_scraping"}'
+name: "rendering/fullpage-shot"
+poolTag: "default"
+transports: ["rest"]
+timeoutMs: 30000
+
+input:
+  url:
+    type: string
+    required: false
+    default: "https://en.wikipedia.org/wiki/Web_scraping"
+  path:
+    type: string
+    required: false
+    default: "/tmp/webtasks-demo/fullpage.png"
+
+flow:
+  - run: goto
+    params: { url: "{{url}}" }
+  - run: wait-for
+    params: { selector: "body", timeoutMs: 10000 }
+  - run: screenshot
+    params:
+      fullPage: true
+      path: "{{path}}"

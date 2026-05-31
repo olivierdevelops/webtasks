@@ -1,0 +1,44 @@
+# Dump the full rendered HTML of a page to disk. Useful for offline scraping
+# experiments — load the saved HTML into goquery later.
+#
+#   executor call basics/save-html '{"url":"https://news.ycombinator.com","path":"/tmp/hn.html"}'
+name: "basics/save-html"
+poolTag: "default"
+transports: ["rest"]
+timeoutMs: 30000
+
+input:
+  url:
+    type: string
+    required: false
+    default: "https://example.com"
+  path:
+    type: string
+    required: false
+    default: "/tmp/webtasks-saved.html"
+    doc: "Where to write the HTML on the server's filesystem"
+  waitFor:
+    type: string
+    required: false
+    default: "body"
+
+flow:
+  - run: goto
+    params: { url: "{{url}}" }
+
+  - run: wait-for
+    params: { selector: "{{waitFor}}", timeoutMs: 15000 }
+
+  - run: save-html
+    params:
+      selector: "."
+      path: "{{path}}"
+
+  - run: extract
+    as: meta
+    params:
+      selector: "html"
+      repeat: false
+      fields:
+        title: { kind: text, selector: "title" }
+        href:  { kind: attr, selector: ".", name: "data-url" }

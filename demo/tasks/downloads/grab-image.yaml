@@ -1,0 +1,25 @@
+# Click a link whose target Chrome will treat as a download (httpbin's image
+# endpoint), wait for the file to land in the per-window download dir, and
+# return its path.
+#
+#   executor call downloads/grab-image
+name: "downloads/grab-image"
+poolTag: "default"
+transports: ["rest"]
+timeoutMs: 30000
+
+flow:
+  - status: "Opening a page with a downloadable image"
+    run: goto
+    params:
+      url: "data:text/html,<a href='https://httpbin.org/image/png' download='demo.png'>download</a>"
+
+  - run: wait-for
+    params: { selector: "a", timeoutMs: 5000 }
+
+  - status: "Triggering the download"
+    run: download-each
+    as: downloaded
+    params:
+      selector: "a"
+      timeoutPerFileMs: 10000

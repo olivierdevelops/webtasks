@@ -1,0 +1,21 @@
+# Expose two locations over HTTP so the Python client (and the operator)
+# can inspect what's been pulled off Concio without poking around on disk.
+#
+#   GET /downloads             -> per-window Chrome downloads (raw spool)
+#   GET /downloads/<file>      -> stream a raw download
+#   GET /files                 -> captured blobs the capture-files task wrote
+#   GET /files/<file>          -> stream a captured blob
+mounts:
+  - prefix: "/downloads"
+    dir: "${WEBTASKS_DOWNLOADS_DIR:-build/downloads}"
+    list: true
+    serve: true
+    recursive: true
+  # Captured Concio attachments live under .ignore/data/<owner>/chats/YYYY/MM/DD/files/
+  # alongside the day's chat_*.json files. We expose the whole chat tree so
+  # the listing finds attachments wherever they end up.
+  - prefix: "/files"
+    dir: "${WEBTASKS_CONCIO_FILES_DIR:-.ignore/data}"
+    list: true
+    serve: true
+    recursive: true

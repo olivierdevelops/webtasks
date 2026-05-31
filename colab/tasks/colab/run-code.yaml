@@ -1,0 +1,57 @@
+# Runs Python in a Colab notebook cell and streams the output live over SSE —
+# the "GPU provider" surface. POST code here with Accept: text/event-stream and
+# receive an `output` event per poll until the cell finishes.
+#
+# Composes only generic engine actions (js / loop / emit-event / return); the
+# binary knows nothing about Colab — all Colab specifics live in scripts/colab.
+name: "colab/run-code"
+poolTag: "colab"
+transports: ["sse", "rest"]
+timeoutMs: 1800000
+setupTask: "colab/open"
+
+input:
+  code:
+    type: string
+    required: true
+    doc: "Python source to run in the active Colab cell"
+  url:
+    type: string
+    required: false
+    default: "https://colab.research.google.com/"
+  pollMs:
+    type: int
+    required: false
+    default: 1500
+    doc: "How often to poll + stream the cell output"
+
+flow:
+  - status: "Placing code into the active cell"
+    run: js
+    as: placed
+    params:
+      fn: "colab/set-active-cell"
+      args: ["{{code}}"]
+  - status: "Running the cell"
+    run: js
+    params: { fn: "colab/run-active-cell" }
+  - status: "Streaming cell output"
+    run: loop
+    params:
+      untilFn: "colab/cell-done"
+      pauseMs: "{{pollMs}}"
+      maxIterations: 1000
+    do:
+      - run: js
+        as: chunk
+        params: { fn: "colab/read-output" }
+      - run: emit-event
+        params:
+          kind: "output"
+          text: "{{chunk}}"
+  - status: "Reading final output"
+    run: js
+    as: result
+    params: { fn: "colab/read-output" }
+  - run: return
+    params: { value: "{{result}}" }

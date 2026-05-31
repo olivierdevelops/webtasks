@@ -1,0 +1,33 @@
+# Generic while-loop: run the `do:` steps, pausing between, until a JS
+# condition holds. Here it counts a page-side variable up to 5, emitting an
+# event each iteration (stream with Accept: text/event-stream to see them).
+#
+#   executor call control/loop --stream
+name: "control/loop"
+poolTag: "default"
+transports: ["sse", "rest"]
+timeoutMs: 30000
+
+flow:
+  - run: goto
+    params: { url: "https://example.com" }
+  - run: js
+    params: { script: "window.__n = 0; return true;" }
+  - run: loop
+    params:
+      until: "return window.__n >= 5"
+      pauseMs: 400
+      maxIterations: 20
+    do:
+      - run: js
+        as: n
+        params: { script: "window.__n = (window.__n || 0) + 1; return window.__n;" }
+      - run: emit-event
+        params:
+          kind: "progress"
+          text: "tick {{n}}"
+  - run: js
+    as: total
+    params: { script: "return window.__n;" }
+  - run: return
+    params: { value: "counted to {{total}}" }

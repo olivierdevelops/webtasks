@@ -1,0 +1,27 @@
+# DuckDuckGo search — demonstrates URL-templated input.
+#
+#   executor call search/duckduckgo '{"q":"chromedp"}'
+name: "search/duckduckgo"
+poolTag: "default"
+transports: ["rest"]
+timeoutMs: 25000
+
+input:
+  q: { type: string, required: false, default: "chromedp", doc: "Search query" }
+
+flow:
+  - run: goto
+    params: { url: "https://duckduckgo.com/?q={{q}}" }
+
+  - run: wait-for
+    params: { selector: "article[data-testid='result'], #links .result", timeoutMs: 12000 }
+
+  - run: extract
+    as: results
+    params:
+      selector: "article[data-testid='result'], #links .result"
+      repeat: true
+      fields:
+        title:   { kind: text, selector: "h2" }
+        url:     { kind: attr, selector: "a", name: "href" }
+        snippet: { kind: text, selector: "[data-testid='result-snippet'], .result__snippet" }

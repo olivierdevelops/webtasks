@@ -1,0 +1,29 @@
+# Build outputs
+/build/
+/dist/
+/site/
+
+# Go
+*.exe
+*.test
+*.out
+
+# Python (MkDocs)
+.venv/
+__pycache__/
+*.pyc
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Runtime artefacts
+/tmp/
+*.log
+.ignore/
+
+# Secrets — never commit
+.env
+*.pem

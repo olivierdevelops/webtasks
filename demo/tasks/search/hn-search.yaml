@@ -1,0 +1,37 @@
+# Search Algolia's Hacker News index. JSON over a templated URL — no
+# scraping needed, but the engine works fine on JSON pages.
+#
+#   executor call search/hn-search '{"q":"go chromedp","tags":"story"}'
+name: "search/hn-search"
+poolTag: "default"
+transports: ["rest"]
+timeoutMs: 20000
+
+input:
+  q:    { type: string, required: false, default: "chromedp" }
+  tags: { type: string, required: false, default: "story" }
+
+flow:
+  - run: goto
+    params: { url: "https://hn.algolia.com/api/v1/search?query={{q}}&tags={{tags}}&hitsPerPage=20" }
+
+  - run: js
+    as: results
+    params:
+      script: |
+        const txt = document.querySelector('pre')?.textContent
+                 || document.body.textContent;
+        try {
+          const j = JSON.parse(txt);
+          return (j.hits || []).map(h => ({
+            id:     h.objectID,
+            title:  h.title,
+            url:    h.url,
+            author: h.author,
+            points: h.points,
+            comments: h.num_comments,
+            createdAt: h.created_at
+          }));
+        } catch (e) {
+          return { error: 'JSON parse failed', snippet: txt.slice(0, 200) };
+        }

@@ -1,0 +1,25 @@
+# Save a page as a single-file MHTML archive (HTML + CSS + images inlined).
+#
+#   executor call rendering/snapshot '{"url":"https://example.com"}'
+name: "rendering/snapshot"
+poolTag: "default"
+transports: ["rest"]
+timeoutMs: 30000
+
+input:
+  url:
+    type: string
+    required: false
+    default: "https://example.com"
+  path:
+    type: string
+    required: false
+    default: "/tmp/webtasks-demo/example.mhtml"
+
+flow:
+  - run: goto
+    params: { url: "{{url}}" }
+  - run: wait-for
+    params: { selector: "body", timeoutMs: 10000 }
+  - run: snapshot
+    params: { path: "{{path}}" }

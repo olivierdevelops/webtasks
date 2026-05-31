@@ -1,0 +1,9 @@
+# The Colab pool is persistent: its single window keeps a stable Chrome
+# profile under <WEBTASKS_PROFILE_DIR>/profile-colab, so a one-time Google
+# login survives across runs and server restarts. Keep size at 1 — two live
+# Chrome processes cannot share one profile directory.
+pools:
+  colab:
+    size: 1
+    persistent: true
+    profile: colab

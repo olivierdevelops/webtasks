@@ -1,0 +1,28 @@
+# Loop whose stop condition is a JS module (`untilFn`) rather than an inline
+# expression. Increments a page-side counter until demo/loop-done returns true.
+#
+#   executor call control/loop-fn
+name: "control/loop-fn"
+poolTag: "default"
+transports: ["rest"]
+timeoutMs: 30000
+
+flow:
+  - run: goto
+    params: { url: "https://example.com" }
+  - run: js
+    params: { script: "window.__k = 0; return true;" }
+  - run: loop
+    params:
+      untilFn: "demo/loop-done"
+      pauseMs: 200
+      maxIterations: 10
+    do:
+      - run: js
+        as: k
+        params: { script: "window.__k = (window.__k||0)+1; return window.__k;" }
+  - run: js
+    as: final
+    params: { script: "return window.__k;" }
+  - run: return
+    params: { value: "stopped at {{final}}" }

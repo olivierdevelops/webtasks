@@ -1,0 +1,23 @@
+# Record every network request a page makes while the `do:` steps run, and
+# return a HAR-ish summary under `data.har`.
+#
+#   executor call network/capture
+name: "network/capture"
+poolTag: "default"
+transports: ["rest"]
+timeoutMs: 40000
+
+input:
+  url:
+    type: string
+    required: false
+    default: "https://quotes.toscrape.com"
+
+flow:
+  - run: capture-network
+    as: har
+    do:
+      - run: goto
+        params: { url: "{{url}}" }
+      - run: wait-for-network-idle
+        params: { idleMs: 800, timeoutMs: 20000 }

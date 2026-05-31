@@ -1,0 +1,23 @@
+# The smallest possible task: open a page and return its <title> + <h1>.
+#
+#   executor call basics/title
+name: "basics/title"
+poolTag: "default"
+transports: ["rest"]
+timeoutMs: 15000
+
+flow:
+  - status: "Visiting example.com"
+    run: goto
+    params: { url: "https://example.com" }
+
+  - status: "Reading title and heading"
+    run: extract
+    as: page
+    params:
+      selector: "html"
+      repeat: false
+      fields:
+        title:   { kind: text, selector: "title" }
+        heading: { kind: text, selector: "h1" }
+        body:    { kind: text, selector: "p" }

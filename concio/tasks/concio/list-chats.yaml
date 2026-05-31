@@ -1,0 +1,26 @@
+# Sidebar chat list: 40-ish recent threads with last-message preview and
+# the hidden epoch span Concio uses to order them.
+#
+#   executor call concio/list-chats
+name: "concio/list-chats"
+poolTag: "concio"
+transports: ["rest"]
+timeoutMs: 60000
+setupTask: "concio/setup"
+
+flow:
+  - run: wait-for
+    params: { selector: ".chat-list-inner", timeoutMs: 30000 }
+
+  - status: "Extracting chat list"
+    run: extract
+    as: chats
+    params:
+      selector: ".chat-list-inner"
+      repeat: true
+      fields:
+        peerName:     { kind: text, selector: ".name" }
+        lastMessage:  { kind: text, selector: ".user-message" }
+        # The hidden epoch span lives at the end of each row (no class).
+        timestampMs:  { kind: text, selector: "span[style*='display: none']:not([class])", transform: long }
+        timestampStr: { kind: text, selector: ".timestamp" }

@@ -1,0 +1,44 @@
+# Fill the httpbin.org form, submit it, return what the server saw. End-to-
+# end sendkeys + action(click) demo.
+#
+#   executor call interaction/form-fill '{"custname":"Ada","custtel":"555","custemail":"a@b","comments":"hi"}'
+name: "interaction/form-fill"
+poolTag: "default"
+transports: ["rest"]
+timeoutMs: 30000
+
+input:
+  custname:  { type: string, required: false, default: "Ada Lovelace" }
+  custtel:   { type: string, required: false, default: "555-0100" }
+  custemail: { type: string, required: false, default: "ada@example.com" }
+  comments:  { type: string, required: false, default: "hi from webtasks" }
+
+flow:
+  - run: goto
+    params: { url: "https://httpbin.org/forms/post" }
+
+  - run: wait-for
+    params: { selector: "form input[name='custname']", timeoutMs: 10000 }
+
+  - run: sendkeys
+    params: { selector: "input[name='custname']",  keys: "{{custname}}" }
+  - run: sendkeys
+    params: { selector: "input[name='custtel']",   keys: "{{custtel}}" }
+  - run: sendkeys
+    params: { selector: "input[name='custemail']", keys: "{{custemail}}" }
+  - run: sendkeys
+    params: { selector: "textarea[name='comments']", keys: "{{comments}}" }
+
+  - run: action
+    params: { action: click, selector: "form button" }
+
+  - run: wait-for
+    params: { selector: "pre", timeoutMs: 10000 }
+
+  - run: extract
+    as: echoed
+    params:
+      selector: "html"
+      repeat: false
+      fields:
+        body: { kind: text, selector: "pre" }

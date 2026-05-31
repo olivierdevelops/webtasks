@@ -1,0 +1,8 @@
+# Expose the per-window download directory at /downloads so file-extracting
+# demos can be inspected from the browser.
+mounts:
+  - prefix: "/downloads"
+    dir: "${WEBTASKS_DOWNLOADS_DIR:-build/downloads}"
+    list: true
+    serve: true
+    recursive: true

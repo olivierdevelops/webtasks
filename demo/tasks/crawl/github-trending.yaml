@@ -1,0 +1,32 @@
+# Trending repos on GitHub for a given language/period.
+#
+#   executor call crawl/github-trending
+#   executor call crawl/github-trending '{"language":"go","since":"weekly"}'
+name: "crawl/github-trending"
+poolTag: "default"
+transports: ["rest"]
+timeoutMs: 25000
+
+input:
+  language: { type: string, required: false, default: "" }
+  since:    { type: string, required: false, default: "daily", doc: "daily | weekly | monthly" }
+
+flow:
+  - run: goto
+    params: { url: "https://github.com/trending/{{language}}?since={{since}}" }
+
+  - run: wait-for
+    params: { selector: "article.Box-row", timeoutMs: 15000 }
+
+  - run: extract
+    as: repos
+    params:
+      selector: "article.Box-row"
+      repeat: true
+      fields:
+        slug:        { kind: text, selector: "h2 a", transform: trim }
+        href:        { kind: attr, selector: "h2 a", name: "href" }
+        description: { kind: text, selector: "p" }
+        language:    { kind: text, selector: "[itemprop='programmingLanguage']" }
+        stars:       { kind: text, selector: "a[href$='/stargazers']", transform: trim }
+        forks:       { kind: text, selector: "a[href$='/forks']",      transform: trim }

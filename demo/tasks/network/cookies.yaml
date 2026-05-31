@@ -1,0 +1,22 @@
+# Round-trip cookies: set one, then read it back. Exercises set-cookies +
+# get-cookies in a single window.
+#
+#   executor call network/cookies
+name: "network/cookies"
+poolTag: "default"
+transports: ["rest"]
+timeoutMs: 20000
+
+flow:
+  - run: goto
+    params: { url: "https://example.com" }
+  - run: set-cookies
+    params:
+      cookies:
+        - { name: "webtasks_test", value: "42", url: "https://example.com" }
+  - run: get-cookies
+    as: cookies
+    params:
+      urls: ["https://example.com"]
+  - run: return
+    params: { value: "{{cookies}}" }

@@ -1,0 +1,30 @@
+# Render a page to PDF. Writes the file to `path` and also returns it
+# base64-encoded under `data.pdf` (path + as → both).
+#
+#   executor call rendering/pdf '{"url":"https://example.com"}'
+name: "rendering/pdf"
+poolTag: "default"
+transports: ["rest"]
+timeoutMs: 30000
+
+input:
+  url:
+    type: string
+    required: false
+    default: "https://example.com"
+  path:
+    type: string
+    required: false
+    default: "/tmp/webtasks-demo/example.pdf"
+
+flow:
+  - run: goto
+    params: { url: "{{url}}" }
+  - run: wait-for
+    params: { selector: "body", timeoutMs: 10000 }
+  - run: pdf
+    as: pdf
+    params:
+      path: "{{path}}"
+      format: "A4"
+      printBackground: true

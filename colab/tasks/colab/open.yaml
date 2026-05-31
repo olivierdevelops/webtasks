@@ -1,0 +1,32 @@
+# Opens a Colab notebook and verifies the session is authenticated. Used as
+# the `setupTask` of colab/run-code. If `authed` is false, run the server
+# headful once (WEBTASKS_HEADLESS=false) and log into Google in the persistent
+# 'colab' profile window — the session then persists for future runs.
+name: "colab/open"
+poolTag: "colab"
+transports: ["rest", "sse"]
+timeoutMs: 120000
+
+input:
+  url:
+    type: string
+    required: false
+    default: "https://colab.research.google.com/"
+    doc: "The Colab notebook URL to open"
+
+flow:
+  - status: "Opening Colab"
+    run: goto
+    params: { url: "{{url}}" }
+  - status: "Waiting for the page to settle"
+    run: wait-for-network-idle
+    params: { idleMs: 1200, timeoutMs: 60000 }
+  - status: "Checking authentication"
+    run: js
+    as: authed
+    params: { fn: "colab/check-auth" }
+  - run: emit-event
+    params:
+      kind: "status"
+      text: "Colab open — authed={{authed}} (if false, log in once via the persistent profile)"
+      data: { authed: "{{authed}}" }

@@ -1,0 +1,25 @@
+# Front-page Hacker News: rank, title, url, score, comments.
+#
+#   executor call crawl/hackernews-top
+name: "crawl/hackernews-top"
+poolTag: "default"
+transports: ["rest"]
+timeoutMs: 20000
+
+flow:
+  - run: goto
+    params: { url: "https://news.ycombinator.com" }
+
+  - run: wait-for
+    params: { selector: "tr.athing", timeoutMs: 10000 }
+
+  - run: extract
+    as: stories
+    params:
+      selector: "tr.athing"
+      repeat: true
+      fields:
+        rank:  { kind: text, selector: ".rank",        transform: trim }
+        title: { kind: text, selector: ".titleline > a" }
+        url:   { kind: attr, selector: ".titleline > a", name: "href" }
+        site:  { kind: text, selector: ".sitestr" }

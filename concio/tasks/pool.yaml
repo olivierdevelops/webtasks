@@ -1,0 +1,6 @@
+# Concio cookies are tied to a single browser session, so the pool is
+# strictly size=1. Multiple concurrent callers will serialise behind the
+# lease — fine because Concio's UI is also single-tab.
+pools:
+  concio:
+    size: 1

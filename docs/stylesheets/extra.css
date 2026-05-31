@@ -1,0 +1,106 @@
+/* Hero banner on the home page */
+.hero {
+  background: linear-gradient(135deg, #3949ab 0%, #5e35b1 50%, #7b1fa2 100%);
+  border-radius: 12px;
+  color: #fff;
+  padding: 2rem 2.5rem;
+  margin-bottom: 2rem;
+}
+
+.hero h1 {
+  color: #fff;
+  margin-top: 0;
+}
+
+.hero p {
+  font-size: 1.1rem;
+  opacity: 0.95;
+}
+
+/* Demo cards grid */
+.demo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.demo-card {
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.demo-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+.demo-card h3 {
+  margin-top: 0;
+  font-size: 1rem;
+}
+
+.demo-card code {
+  font-size: 0.85em;
+}
+
+/* Animated pulse on architecture diagram nodes */
+@keyframes pulse-node {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+.flow-node-active {
+  animation: pulse-node 2s ease-in-out infinite;
+}
+
+/* SSE event stream animation */
+@keyframes sse-slide {
+  0% { transform: translateX(-8px); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+
+.sse-event {
+  animation: sse-slide 0.6s ease-out forwards;
+}
+
+.sse-event:nth-child(2) { animation-delay: 0.3s; }
+.sse-event:nth-child(3) { animation-delay: 0.6s; }
+.sse-event:nth-child(4) { animation-delay: 0.9s; }
+.sse-event:nth-child(5) { animation-delay: 1.2s; }
+
+/* Diagram centering */
+.diagram {
+  text-align: center;
+  margin: 1.5rem 0;
+}
+
+.diagram img,
+.diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Task YAML preview blocks */
+.task-preview {
+  font-size: 0.9em;
+}
+
+/* Feature pill badges */
+.feature-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.feature-pill {
+  background: var(--md-primary-fg-color--light);
+  color: var(--md-primary-bg-color);
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+}

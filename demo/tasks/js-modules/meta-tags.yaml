@@ -1,0 +1,21 @@
+# Open a page and pull every <meta> tag using a reusable JS module.
+#
+#   executor call js-modules/meta-tags '{"url":"https://github.com"}'
+name: "js-modules/meta-tags"
+poolTag: "default"
+transports: ["rest"]
+timeoutMs: 20000
+
+input:
+  url: { type: string, required: false, default: "https://github.com" }
+
+flow:
+  - run: goto
+    params: { url: "{{url}}" }
+
+  - run: wait-for
+    params: { selector: "head", timeoutMs: 10000 }
+
+  - run: js
+    as: meta
+    params: { fn: "demo/get-meta-tags" }

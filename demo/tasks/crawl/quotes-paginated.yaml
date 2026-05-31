@@ -1,0 +1,37 @@
+# Walk N pages of quotes.toscrape.com and harvest every quote + author. A
+# good demo of multi-page scraping with a loop unrolled in flow form.
+#
+#   executor call crawl/quotes-paginated
+#   executor call crawl/quotes-paginated '{"page":3}'
+name: "crawl/quotes-paginated"
+poolTag: "default"
+transports: ["rest"]
+timeoutMs: 30000
+
+input:
+  page: { type: int, required: false, default: 1, doc: "Page number (1..10)" }
+
+flow:
+  - run: goto
+    params: { url: "https://quotes.toscrape.com/page/{{page}}/" }
+
+  - run: wait-for
+    params: { selector: ".quote", timeoutMs: 10000 }
+
+  - run: extract
+    as: quotes
+    params:
+      selector: ".quote"
+      repeat: true
+      fields:
+        text:   { kind: text, selector: ".text" }
+        author: { kind: text, selector: ".author" }
+        tags:   { kind: text, selector: ".tags" }
+
+  - run: extract
+    as: nav
+    params:
+      selector: ".pager, body"
+      repeat: false
+      fields:
+        next: { kind: attr, selector: ".next > a", name: "href" }

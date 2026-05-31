@@ -1,0 +1,22 @@
+# Pulls the groups directory ("Groups" tab) — names + member counts.
+# Used by the Python client to classify chats as group vs DM.
+#
+#   executor call concio/list-groups
+name: "concio/list-groups"
+poolTag: "concio"
+transports: ["rest"]
+timeoutMs: 60000
+setupTask: "concio/setup"
+
+flow:
+  - run: wait-for
+    params: { selector: ".leftSide-group-list-item", timeoutMs: 15000 }
+
+  - status: "Extracting groups directory"
+    run: extract
+    as: groups
+    params:
+      selector: ".leftSide-group-list-item"
+      repeat: true
+      fields:
+        name: { kind: text, selector: ".name" }
