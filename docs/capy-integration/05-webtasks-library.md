@@ -4,14 +4,18 @@ The library is the **complete grammar** for webtasks task files. It lives at
 [`grammar/webtasks.capy`](grammar/webtasks.capy) in this repo (proposed; not yet
 wired into the Go binary).
 
-Install Capy CLI (use `@main` until tagged releases match module path):
+Install Capy CLI (**v0.20.0**):
 
 ```bash
-go install github.com/olivierdevelops/capy/cmd/capy@main
+go install github.com/olivierdevelops/capy/cmd/capy@v0.20.0
 capy check docs/capy-integration/grammar/webtasks.capy
 capy run docs/capy-integration/grammar/webtasks.capy \
        docs/capy-integration/grammar/samples/01-hello.capy
+capy watch docs/capy-integration/grammar/webtasks.capy \
+         docs/capy-integration/grammar/samples/01-hello.capy
 ```
+
+See [v0.20 overview](00-v020-overview.md) for `RunMulti`, `SetHost`, and the full CLI.
 
 ---
 

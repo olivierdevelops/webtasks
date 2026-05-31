@@ -2,13 +2,34 @@
 
 ---
 
+## Install / module path
+
+Use the tagged release when it resolves:
+
+```bash
+go install github.com/olivierdevelops/capy/cmd/capy@v0.20.0
+go get github.com/olivierdevelops/capy@v0.20.0
+```
+
+If `@v0.20.0` fails with a module-path mismatch (`luowensheng/capy` vs
+`olivierdevelops/capy`), use `@main` until the tag is republished:
+
+```bash
+go install github.com/olivierdevelops/capy/cmd/capy@main
+```
+
+---
+
 ## `capy check` fails on webtasks.capy
 
 | Error | Fix |
 |---|---|
-| `unknown type "Foo"` | Add `type Foo … end` or fix typo in `arg capture` |
+| `unknown type "Foo"` | Add `type Foo … end` or fix typo |
 | `optional arg must be trailing` | Move `default` args to end of arg list |
-| `mixed group_open and pattern` | Type uses both — pick one constraint style |
+| `expected newline after if cond` | Put `if` body on following lines; use `else`/`end` |
+| `mixed group_open and pattern` | Pick one constraint style per type |
+
+See [migration-guide.md](https://github.com/olivierdevelops/capy/blob/main/docs/migration-guide.md).
 
 ---
 
@@ -16,44 +37,33 @@
 
 | Error | Fix |
 |---|---|
-| `no function matched` | Typo in verb; check `capy docs` for valid shapes |
-| `not in options for type "PoolTag"` | Use declared pool or extend type |
+| `no function matched` | Typo in verb; run `capy docs webtasks.capy` |
+| `not in options for type "PoolTag"` | Extend type or fix pool name |
 | `unexpected character '#'` | Add `comments line "#" end` to library |
-| Indentation errors | Use 4 spaces per level (Capy lexer rule) |
 
 ---
 
-## Transpiled YAML won't load in webtasks
-
-| Symptom | Fix |
-|---|---|
-| `missing required input` | Check `input` block emitted correctly |
-| `unknown action` | DSL verb maps to wrong `run:` — fix library function |
-| `yaml: unmarshal errors` | Inspect emit — numbers must not be quoted strings |
-
-Debug:
+## Transpiled YAML won't load
 
 ```bash
 capy run capy/webtasks.capy task.capy | python3 -c 'import sys,yaml; yaml.safe_load(sys.stdin)'
 ```
 
----
-
-## Capy vs capylang (PyPI)
-
-The PyPI package `capylang` (Anistick math utilities) is **unrelated**.
-webtasks integration uses **[github.com/olivierdevelops/capy](https://github.com/olivierdevelops/capy)** only.
+Check `flow` structure — fields must be maps, not arrays (known v0.1 grammar bug).
 
 ---
 
-## Local path `capylang-claude`
+## capylang (PyPI) ≠ Capy
 
-If your checkout lives at `capylang-claude/`, it is the same project as
-`olivierdevelops/capy` — use the GitHub repo for installs and docs:
+The PyPI package `capylang` (Anistick math utilities) is unrelated. Use
+**[github.com/olivierdevelops/capy](https://github.com/olivierdevelops/capy)** only.
 
-```bash
-go install github.com/olivierdevelops/capy/cmd/capy@latest
-```
+---
+
+## Local checkout names
+
+A local folder named `capylang-claude` may be a Capy checkout — the canonical
+remote is `olivierdevelops/capy` on GitHub.
 
 ---
 

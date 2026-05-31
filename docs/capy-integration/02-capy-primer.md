@@ -1,7 +1,8 @@
 # 2. Capy primer
 
-This chapter summarizes [Capy](https://github.com/olivierdevelops/capy) concepts
-you need before reading the webtasks grammar proposal. Full upstream docs:
+This chapter summarizes [Capy v0.20.0](https://github.com/olivierdevelops/capy)
+concepts for webtasks authors. For the full v0.20 integration reference see
+[chapter 0](00-v020-overview.md). Upstream:
 [library authoring](https://github.com/olivierdevelops/capy/blob/main/docs/library-authoring.md),
 [inner DSL](https://github.com/olivierdevelops/capy/blob/main/docs/inner-dsl.md),
 [types](https://github.com/olivierdevelops/capy/blob/main/docs/types.md).
@@ -14,10 +15,10 @@ you need before reading the webtasks grammar proposal. Full upstream docs:
 flowchart LR
     Lib["webtasks.capy\n(grammar)"]
     Src["title.capy\n(user task)"]
-    Out["title.yaml\n(or JSON)"]
-    WT["webtasks server\n(existing runtime)"]
+    Out["title.yaml"]
+    WT["webtasks server"]
 
-    Lib --> Engine["Capy engine"]
+    Lib --> Engine["Capy v0.20"]
     Src --> Engine
     Engine --> Out
     Out --> WT
@@ -25,35 +26,37 @@ flowchart LR
 
 Three artifacts:
 
-1. **Library** (`webtasks.capy`) — defines what valid task source looks like
-   and how each statement becomes YAML fragments + accumulated context.
-2. **Source script** (`tasks/basics/title.capy`) — one task per file (convention).
-3. **Output** — YAML matching today's schema (Phase 1).
+1. **Library** (`capy/webtasks.capy`) — the entire grammar + renderer.
+2. **Source script** (`tasks/basics/title.capy`) — one task per file.
+3. **Output** — YAML `TaskDef` (Phase 1); optionally multiple files via `RunMulti`.
 
-Capy has **zero built-in user keywords**. `task`, `goto`, `extract` — all
-defined by your library.
+Capy has **zero built-in user keywords**. `task`, `goto`, `extract` are all
+library-defined.
 
 ---
 
-## Library file anatomy
+## Library file anatomy (v0.20.0)
 
-```
-extension yaml                    # output looks like YAML
+```capy
+extension yaml
 
-context                           # accumulates task metadata + flow steps
-    name ""
-    poolTag "default"
+comments
+    line "#"
+end
+
+context
+    name       ""
+    poolTag    "default"
     transports []
-    timeoutMs 60000
-    input {}
-    flow []
+    timeoutMs  60000
+    flow       []
 end
 
-type ActionName                   # library-defined validation
-    options "goto" "wait-for" "extract" ...
+type PoolTag
+    options "default" "concio" "colab"
 end
 
-function task                     # block: wraps entire task
+function task
     arg literal "task"
     arg capture slug string
     block_closer end
@@ -63,123 +66,50 @@ end
 function goto
     arg literal "goto"
     arg capture url string
-    append context.flow {run: "goto", params: {url: url}}
+    append context.flow { run: "goto", params: { url: url } }
 end
 
-file_template                     # assemble final YAML
-    write (toYAML context)
+file "tasks/generated.yaml"
+    write `name: ${toQuoted context.name}
+flow: ${toJSONIndent context.flow}
+`
 end
 ```
+
+Use `file "path"` blocks for multi-file output, or `file_template` for a single
+primary artifact.
 
 ---
 
 ## Functions and matching
 
-Each `function NAME … end` declares one **statement shape** in user source.
-
 | Mechanism | Behavior |
 |---|---|
 | `arg literal "goto"` | Must match token `goto` |
-| `arg capture url string` | Bind next value to `url` |
-| Auto-name-prepend | Zero literals → leading token is function name |
+| `arg capture url string` | Bind typed hole |
+| `arg capture ms int default "15000"` | Optional trailing arg (v0.20 syntax) |
 | `block_closer end` | Indented body until `end` |
+| `block_verbatim end` | Raw body (embedded JS, SQL) |
 | `priority N` | Disambiguate overlapping shapes |
-
-Example — auto-name-prepend:
-
-```
-function greet
-    arg capture name string
-end
-```
-
-Matches: `greet "world"` (leading `greet` injected automatically).
-
-Example — operator style (literals own the shape):
-
-```
-function assign
-    arg capture var ident
-    arg literal "="
-    arg capture value any
-end
-```
-
-Matches: `x = 42` with no `assign` keyword.
 
 ---
 
-## Inner DSL (function bodies)
+## Inner DSL (v0.20.0)
 
-Inside each function, statements either **emit text** or **mutate context**:
+Inside function bodies and output blocks:
 
 | Statement | Purpose |
 |---|---|
-| `write \`…\`` | Append to output fragment (often unused per-step; we use context) |
-| `set context.field value` | Assign |
+| `set context.field value` | Assign scalar or map field |
 | `append context.flow step` | Push flow command |
-| `if cond … end` | Conditional metadata |
-| `for x in list … end` | Loop |
-| `error "msg"` | Abort transpile with message |
+| `if cond … else … end` | Conditional |
+| `for x in list … end` | Iteration |
+| `while cond … end` | Loop |
+| `write \`…\`` | Emit text with `${…}` interpolation |
+| `error "msg"` | Abort transpile |
 
-Captures (`url`, `slug`, …) are read-only inside the body. Paths rooted at
-`context` are mutable.
-
----
-
-## Types validate captures
-
-```capy
-type PoolTag
-    options "default" "concio" "colab"
-end
-
-function pool
-    arg literal "pool"
-    arg capture tag PoolTag
-    set context.poolTag tag
-end
-```
-
-Invalid: `pool production` → transpile error at author time.
-
-Built-in capture kinds: `any`, `ident`, `string`, `int`, `float`, `bool`,
-`word`, `tail`, `dotted_ident`, `raw`.
-
----
-
-## Block functions
-
-webtasks needs nested steps for `record`, `capture-network`, `for-each`, `loop`:
-
-```capy
-function record
-    arg literal "record"
-    arg capture dest ident
-    block_closer end
-    append context.flow {
-        run: "record",
-        as: dest,
-        do: body_steps_from_nested_parse
-    }
-end
-```
-
-Capy provides `${body}` in block function templates — rendered output of nested
-statements. For webtasks, nested statements should **append to a nested flow list**
-in context rather than emit text — see [chapter 10](10-transpilation-pipeline.md).
-
----
-
-## CLI essentials
-
-```bash
-go install github.com/olivierdevelops/capy/cmd/capy@latest
-
-capy check capy/webtasks.capy          # validate library
-capy run capy/webtasks.capy task.capy  # transpile to stdout
-capy docs capy/webtasks.capy           # auto-generate DSL reference
-```
+In `${…}`: `decoded`, `unquote`, `toJSON`, `toJSONIndent`, `escapeHtml`, `indent`,
+`pascalCase`, `add`, `join`, etc.
 
 ---
 
@@ -188,12 +118,32 @@ capy docs capy/webtasks.capy           # auto-generate DSL reference
 ```go
 import "github.com/olivierdevelops/capy"
 
-lib, err := capy.NewLibraryFromFile("capy/webtasks.capy")
-yamlBytes, err := lib.Run(string(taskSource))
+lib, _ := capy.NewLibraryFromFile("capy/webtasks.capy")
+
+yaml, err := lib.Run(taskSource)                    // single output
+primary, files, err := lib.RunMulti(taskSource)     // multi-file
+
+md := capy.RenderLibraryDocs(lib)
+info := lib.Introspect()
 ```
 
-`NewLibrary` compiles once; `Run` is safe to call concurrently on the same
-`*Library`. See [chapter 11](11-go-embedding.md).
+Default host is **NoOpHost** (no env/filesystem access during codegen). See
+[chapter 11](11-go-embedding.md).
+
+---
+
+## CLI (v0.20.0)
+
+```bash
+# v0.20.0 API — @main until @v0.20.0 tag resolves on module path olivierdevelops/capy
+go install github.com/olivierdevelops/capy/cmd/capy@main
+
+capy check capy/webtasks.capy tasks/basics/title.capy
+capy run capy/webtasks.capy tasks/basics/title.capy
+capy docs capy/webtasks.capy
+capy fmt tasks/**/*.capy --check
+capy watch capy/webtasks.capy tasks/basics/title.capy
+```
 
 ---
 

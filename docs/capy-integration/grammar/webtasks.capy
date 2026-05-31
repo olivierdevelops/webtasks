@@ -1,5 +1,6 @@
-# webtasks.capy — proposed grammar library v0.1
-# Upstream engine: https://github.com/olivierdevelops/capy
+# webtasks.capy — proposed grammar library v0.1 (Capy v0.20.0)
+# Upstream: https://github.com/olivierdevelops/capy  @v0.20.0
+# Module:   github.com/olivierdevelops/capy
 # Transpiles webtasks task DSL → YAML TaskDef for the existing server.
 #
 # Usage:

@@ -1,8 +1,13 @@
 # Capy integration guide
 
 Replace verbose YAML task definitions with a **typed, sandboxed DSL** powered by
-[Capy](https://github.com/olivierdevelops/capy) — a configurable transpiler
-where **you define the entire grammar** in a `.capy` library file.
+[Capy v0.20.0](https://github.com/olivierdevelops/capy) — a configurable
+transpiler where **you define the entire grammar** in a `.capy` library file.
+
+!!! info "Version"
+    This guide targets **Capy `v0.20.0`** (`github.com/olivierdevelops/capy`).
+    Start with the [v0.20 integration reference](00-v020-overview.md), then follow
+    the chapters below for webtasks-specific grammar, samples, and rollout.
 
 This guide is the full integration blueprint for webtasks: architecture,
 proposed grammar, Go embedding code, migration path, and **nine worked sample
@@ -29,10 +34,11 @@ surface** — the files in your bundle — and transpiles them into the same
 
 ---
 
-## Document map (26 chapters)
+## Document map (27 chapters)
 
 | # | Chapter | What you'll learn |
 |---|---|---|
+| 0 | **[Capy v0.20 overview](00-v020-overview.md)** | Latest API, CLI, sandboxing, rollout |
 | 1 | [Why replace YAML?](01-why-replace-yaml.md) | Cost/benefit, coexistence model |
 | 2 | [Capy primer](02-capy-primer.md) | Libraries, functions, context, inner DSL |
 | 3 | [YAML ↔ Capy mapping](03-yaml-capy-mapping.md) | Field-by-field equivalence |
@@ -43,27 +49,19 @@ surface** — the files in your bundle — and transpiles them into the same
 | 8 | [Integration architecture](08-architecture.md) | Where Capy sits in VHCO |
 | 9 | [Bundle loader changes](09-bundle-loader.md) | `WalkCapy`, hot-reload |
 | 10 | [Transpilation pipeline](10-transpilation-pipeline.md) | `.capy` → YAML → `TaskDef` |
-| 11 | [Go embedding](11-go-embedding.md) | `capy.NewLibrary`, registry hook |
+| 11 | [Go embedding](11-go-embedding.md) | `RunMulti`, `SetHost`, registry hook |
 | 12 | [Migration strategy](12-migration.md) | YAML + Capy in one bundle |
-| 13 | [Sample 1 — hello](samples/01-hello.md) | Smallest task |
-| 14 | [Sample 2 — HN crawl](samples/02-hackernews.md) | List extraction |
-| 15 | [Sample 3 — search](samples/03-search.md) | Inputs + templating |
-| 16 | [Sample 4 — form fill](samples/04-form-fill.md) | Interaction |
-| 17 | [Sample 5 — SSE](samples/05-streaming.md) | Progress events |
-| 18 | [Sample 6 — JS modules](samples/06-js-modules.md) | `fn:` references |
-| 19 | [Sample 7 — control flow](samples/07-control-flow.md) | `call`, `loop` |
-| 20 | [Sample 8 — rendering](samples/08-rendering.md) | PDF, screenshot |
-| 21 | [Sample 9 — Concio bundle](samples/09-concio-bundle.md) | Production complexity |
-| 22 | [AI authoring](22-ai-authoring.md) | Token compression, sandboxing |
-| 23 | [Editor tooling](23-editor-tooling.md) | Introspect, MCP, playground |
+| 13–21 | [Samples](samples/01-hello.md) | Hello → Concio-scale projects |
+| 22 | [AI authoring](22-ai-authoring.md) | Token compression, MCP, sandboxing |
+| 23 | [Editor tooling](23-editor-tooling.md) | Introspect, fmt, watch, WASM |
 | 24 | [Testing and CI](24-testing-ci.md) | `capy check`, golden files |
 | 25 | [Troubleshooting](25-troubleshooting.md) | Common errors |
 | 26 | [Roadmap](26-roadmap.md) | Phased rollout |
 
-Reference artifacts live alongside this guide:
+Reference artifacts:
 
-- [`grammar/webtasks.capy`](grammar/webtasks.capy) — proposed library (copy-paste ready)
-- [`grammar/samples/*.capy`](grammar/samples/) — source scripts for each sample
+- [`grammar/webtasks.capy`](grammar/webtasks.capy) — proposed library (v0.20.0 syntax)
+- [`grammar/samples/*.capy`](grammar/samples/) — runnable examples
 
 ---
 
@@ -93,32 +91,21 @@ flow:
 ```capy
 task "basics/title"
     pool default
-    timeout 15s
+    timeout 15000
     transport rest
 
     goto "https://example.com"
-    extract page from "html":
+    extract page from "html"
         title text "title"
+    end
 end
 ```
 
-**Transpiled YAML** (what the server loads — identical to hand-written YAML):
+Transpile with:
 
-```yaml
-name: "basics/title"
-poolTag: "default"
-transports: ["rest"]
-timeoutMs: 15000
-flow:
-  - run: goto
-    params: { url: "https://example.com" }
-  - run: extract
-    as: page
-    params:
-      selector: "html"
-      repeat: false
-      fields:
-        title: { kind: text, selector: "title" }
+```bash
+go install github.com/olivierdevelops/capy/cmd/capy@v0.20.0
+capy run capy/webtasks.capy tasks/basics/title.capy
 ```
 
 ---
@@ -126,8 +113,11 @@ flow:
 ## External links
 
 - [Capy repository](https://github.com/olivierdevelops/capy)
-- [Capy library authoring](https://github.com/olivierdevelops/capy/blob/main/docs/library-authoring.md)
-- [Capy embedding in Go](https://github.com/olivierdevelops/capy/blob/main/docs/embedding.md)
-- [Capy for LLMs](https://github.com/olivierdevelops/capy/blob/main/docs/CAPY_FOR_LLMS.md)
+- [Capy CHANGELOG](https://github.com/olivierdevelops/capy/blob/main/CHANGELOG.md)
+- [Capy migration guide](https://github.com/olivierdevelops/capy/blob/main/docs/migration-guide.md)
+- [Grammar-as-contract](https://github.com/olivierdevelops/capy/blob/main/docs/grammar-as-contract.md)
+- [Host capabilities & sandboxing](https://github.com/olivierdevelops/capy/blob/main/docs/host-capabilities.md)
+- [AI agents](https://github.com/olivierdevelops/capy/blob/main/docs/ai-agents.md)
+- [CLI reference (v0.20)](https://github.com/olivierdevelops/capy/blob/main/docs/cli.md)
 - [webtasks task definition](../task-definition.md)
 - [webtasks actions reference](../actions.md)

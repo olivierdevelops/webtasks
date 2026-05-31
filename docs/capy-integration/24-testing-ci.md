@@ -1,89 +1,82 @@
 # 24. Testing and CI
 
-Keep Capy tasks correct without starting Chrome.
+Keep Capy tasks correct without starting Chrome. Targets **Capy v0.20.0**.
 
 ---
 
 ## Layer 1 — Library validation
 
 ```bash
+go install github.com/olivierdevelops/capy/cmd/capy@v0.20.0
 capy check capy/webtasks.capy
 ```
 
-Catches:
-
-- Unknown types
-- Invalid `arg` ordering (optional before required)
-- Broken inner-DSL syntax
-
-Run on every PR touching `capy/webtasks.capy`.
+Validates all `function`, `type`, and output block syntax.
 
 ---
 
-## Layer 2 — Golden transpile tests
+## Layer 2 — Per-task check
 
-For each `tasks/**/*.capy`:
+```bash
+for f in tasks/**/*.capy; do
+  capy check capy/webtasks.capy "$f" || exit 1
+done
+```
+
+Structured errors with line:column — feed directly to agents or CI logs.
+
+---
+
+## Layer 3 — Golden transpile tests
 
 ```bash
 capy run capy/webtasks.capy "$f" > "${f%.capy}.golden.yaml"
 ```
 
-Commit golden files. CI:
+During migration, golden equals the existing hand-written YAML.
+
+CI:
 
 ```bash
 diff -u expected.golden.yaml <(capy run capy/webtasks.capy task.capy)
 ```
 
-During YAML→Capy migration, golden can be the **existing YAML file** until
-outputs stabilize.
+For `RunMulti` libraries, diff every path in the output map.
 
 ---
 
-## Layer 3 — Go integration tests
-
-```go
-func TestCapyTasksLoad(t *testing.T) {
-    b := openBundle(t, "testdata/capy-bundle")
-    reg := makeRegistry(t, b)
-    d, ok := reg.Get("basics/title")
-    require.True(t, ok)
-    require.Len(t, d.Flow, 2)
-}
-```
-
----
-
-## Layer 4 — Smoke tests (Chrome)
-
-Unchanged — run transpiled tasks against live sites:
+## Layer 4 — Format gate
 
 ```bash
-executor call crawl/hackernews-top
+capy fmt tasks/**/*.capy --check
 ```
-
-Separate **author-time** (Capy) from **runtime** (browser) tests.
 
 ---
 
-## Sample CI workflow
+## Layer 5 — Go integration tests
+
+```go
+files, err := tr.Transpile(string(src))
+yaml, err := tr.TaskYAML(files, tr.lib)
+// yaml.Unmarshal → domain.TaskDef
+```
+
+---
+
+## Layer 6 — Smoke tests (Chrome)
+
+Unchanged — `executor call …` against live sites.
+
+---
+
+## Sample GitHub Actions job
 
 ```yaml
-name: capy-tasks
-on: [push, pull_request]
-jobs:
-  transpile:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-      - run: go install github.com/olivierdevelops/capy/cmd/capy@latest
-      - run: capy check capy/webtasks.capy
-      - run: ./scripts/verify-capy-golden.sh
-  integration:
-    needs: transpile
-    runs-on: ubuntu-latest
-    steps:
-      - run: go test ./internal/infra/capyx/...
+- run: go install github.com/olivierdevelops/capy/cmd/capy@v0.20.0
+- run: capy check capy/webtasks.capy
+- run: capy fmt tasks/**/*.capy --check
+- run: ./scripts/verify-capy-golden.sh
+- run: go test ./internal/infra/capyx/...
 ```
 
 ---

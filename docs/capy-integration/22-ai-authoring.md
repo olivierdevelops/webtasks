@@ -1,89 +1,94 @@
-# 22. AI authoring with Capy
+# 22. AI authoring with Capy v0.20.0
 
-How [Capy](https://github.com/olivierdevelops/capy) makes webtasks easier for
-AI agents (Claude, Cursor, etc.) — based on
-[docs/ai-agents.md](https://github.com/olivierdevelops/capy/blob/main/docs/ai-agents.md).
+How Capy makes webtasks easier for AI agents — based on
+[Capy's AI agents guide](https://github.com/olivierdevelops/capy/blob/main/docs/ai-agents.md)
+and the [v0.20 overview](00-v020-overview.md).
+
+---
+
+## The problem with agents writing YAML
+
+Asking a model to emit task YAML directly costs ~25–45 lines per task, with:
+
+- Invented `run:` keywords (`gotoo`, `extracts`)
+- Wrong nesting under `params:` / `fields:`
+- Drift between `call "task/a"` and the actual `name:` slug
+- No validation until Chrome runs
+
+---
+
+## The Capy loop (deterministic steps 3–4)
+
+```
+1. lib.Introspect()              → agent learns allowed verbs + arg types
+2. draft tasks/crawl/hn.capy     → ~12 lines of DSL (~40 tokens)
+3. capy check webtasks.capy …    → parse error with line:col? retry
+4. lib.RunMulti(source)          → tasks/…/*.yaml (NoOpHost, no FS access)
+5. executor call crawl/hn        → existing HTTP API + Chrome
+```
+
+Only step 2 is the model. Steps 3–4 are Go code you ship.
 
 ---
 
 ## Token compression
 
-Agents emit **short DSL**; Capy expands to verbose YAML deterministically.
+| Artifact | Approx. tokens |
+|---|---|
+| Hand-written YAML task | 150–300 |
+| Capy DSL source | 40–80 |
+| Expanded YAML (deterministic) | 150–300 |
 
-| Task | YAML lines | Capy lines | Expansion ratio |
-|---|---|---|---|
-| basics/title | ~22 | ~9 | ~2.4× |
-| crawl/hackernews-top | ~25 | ~12 | ~2.1× |
-| interaction/form-fill | ~45 | ~18 | ~2.5× |
-| concio/get-messages (sketch) | ~60 | ~15 | ~4× |
-
-In an agent loop, the library (`webtasks.capy`) is loaded **once** in context;
-each invocation only sends the short task source.
+The agent writes the **short** form; your library expands it. The library is
+loaded once per session — amortized across hundreds of task edits.
 
 ---
 
-## Sandboxing
+## Parser-as-sandbox
 
-The grammar is the security boundary:
+Combined with default **NoOpHost**:
 
-```capy
-type ActionName
-    options "goto" "wait-for" "extract" "call" ...
-end
+- Tokens not in `webtasks.capy` → parse error, no file written
+- No `env` / `read_file` during codegen unless you opt into `OSHost`
+- Enum types (`PoolTag`, `ActionName`) block invented values
 
-type PoolTag
-    options "default" "concio"
-end
-```
-
-An agent **cannot** transpile:
-
-- Undefined actions (`run: eval`)
-- Wrong pools (`pool admin`)
-- Arbitrary `call` targets (when restricted by enum)
-
-No post-hoc regex filtering of YAML — invalid source fails at `capy run`.
+The model cannot emit arbitrary YAML keys — only shapes the grammar accepts.
 
 ---
 
-## Context documents for agents
-
-Provide agents three files:
-
-1. [`CAPY_FOR_LLMS.md`](https://github.com/olivierdevelops/capy/blob/main/docs/CAPY_FOR_LLMS.md) — Capy mechanics
-2. `capy/webtasks.capy` — the grammar (or `capy docs` output)
-3. [actions.md](../actions.md) — semantic reference for each transpiled action
-
-Prompt pattern:
-
-> Author a webtasks task in Capy DSL matching `webtasks.capy`. Transpile with
-> `capy run` before submitting. Do not output YAML directly.
-
----
-
-## MCP integration
-
-Capy ships [`capy-mcp`](https://github.com/olivierdevelops/capy/blob/main/docs/mcp.md):
+## MCP integration (v0.20.0)
 
 ```bash
-go install github.com/olivierdevelops/capy/cmd/capy-mcp@latest
+go install github.com/olivierdevelops/capy/cmd/capy-mcp@v0.20.0
 ```
 
-Agents can call transpile/check without shell access — wire into Cursor MCP
-config alongside webtasks server tools.
+Wire into Cursor / Claude Desktop per
+[MCP docs](https://github.com/olivierdevelops/capy/blob/main/docs/mcp.md).
+Agents can introspect, check, and transpile without shell access.
 
 ---
 
-## Error feedback loop
+## Prompt assets
 
-Capy errors are caret-pointed:
+Provide agents:
 
-```
-tasks/new-task.capy:8: function "goto" arg "url": value "" does not match type "string"
-```
+1. [CAPY_FOR_LLMS.md](https://github.com/olivierdevelops/capy/blob/main/docs/CAPY_FOR_LLMS.md)
+2. `capy docs webtasks.capy` output (auto-generated reference)
+3. [actions.md](../actions.md) — semantic meaning of transpiled `run:` steps
 
-Agents read the error, fix line 8, re-run — faster than debugging a silent
-YAML logic bug in Chrome.
+Instruction:
+
+> Author webtasks tasks in Capy DSL only. Run `capy check` before submitting.
+> Do not output YAML directly.
+
+---
+
+## Metaprogramming (advanced)
+
+Scripts can declare one-off grammar extensions with `define NAME … end` blocks
+merged before evaluation — useful for generated task families without editing
+the shared library. See
+[metaprogramming.md](https://github.com/olivierdevelops/capy/blob/main/docs/metaprogramming.md).
 
 ---
 

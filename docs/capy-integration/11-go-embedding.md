@@ -1,22 +1,36 @@
 # 11. Go embedding
 
 Reference implementation for `infra/capyx` using
-[github.com/olivierdevelops/capy](https://github.com/olivierdevelops/capy).
+[Capy v0.20.0](https://github.com/olivierdevelops/capy) (`github.com/olivierdevelops/capy`).
+
+See also [v0.20 overview](00-v020-overview.md) for the full API surface.
 
 ---
 
-## Install
+## Dependency
 
 ```bash
-go install github.com/olivierdevelops/capy/cmd/capy@main   # @latest may fail on module path; use @main
+# v0.20.0 API — use @main if @v0.20.0 tag reports a module-path mismatch
+go install github.com/olivierdevelops/capy/cmd/capy@main
 go get github.com/olivierdevelops/capy@main
 ```
 
-Pin to a tagged release when integrating (Capy is pre-1.0).
+When the tagged release resolves cleanly:
+
+```bash
+go install github.com/olivierdevelops/capy/cmd/capy@v0.20.0
+go get github.com/olivierdevelops/capy@v0.20.0
+```
+
+Pin explicitly in `go.mod`. Capy is pre-1.0 — check
+[CHANGELOG](https://github.com/olivierdevelops/capy/blob/main/CHANGELOG.md) when bumping.
+
+For local Capy development, a `replace` directive in `go.mod` can point at a
+checkout (remove before release).
 
 ---
 
-## capyx package
+## capyx package (v0.20.0)
 
 ```go
 // internal/infra/capyx/transpiler.go
@@ -30,13 +44,13 @@ import (
 )
 
 type Transpiler struct {
-    lib *capy.Library
-    mu  sync.RWMutex
-    cache map[string]string // optional: hash(source) → yaml
+    lib   *capy.Library
+    mu    sync.RWMutex
+    cache map[string]map[string]string // source hash → path → contents
 }
 
-func NewFromBundle(b bundle.Loader, libRelPath string) (*Transpiler, error) {
-    src, err := b.ReadFile(libRelPath)
+func NewFromBundle(readFile func(string) ([]byte, error), libRelPath string) (*Transpiler, error) {
+    src, err := readFile(libRelPath)
     if err != nil {
         return nil, fmt.Errorf("capy library %q: %w", libRelPath, err)
     }
@@ -44,18 +58,47 @@ func NewFromBundle(b bundle.Loader, libRelPath string) (*Transpiler, error) {
     if err != nil {
         return nil, fmt.Errorf("compile capy library: %w", err)
     }
-    return &Transpiler{lib: lib, cache: map[string]string{}}, nil
+    // Default NoOpHost — safe for user/AI-authored task scripts.
+    // lib.SetHost(capyinfra.OSHost{}) // trusted libraries only
+    return &Transpiler{lib: lib, cache: map[string]map[string]string{}}, nil
 }
 
-func (t *Transpiler) Transpile(taskSource string) (string, error) {
+// Transpile returns all files from RunMulti. For single-output libraries the
+// primary string is stored under lib.OutputFile().
+func (t *Transpiler) Transpile(taskSource string) (map[string]string, error) {
     t.mu.RLock()
     lib := t.lib
     t.mu.RUnlock()
-    out, err := lib.Run(taskSource)
+
+    primary, files, err := lib.RunMulti(taskSource)
     if err != nil {
-        return "", err
+        return nil, err
     }
-    return out, nil
+    if files == nil {
+        files = map[string]string{}
+    }
+    if primary != "" {
+        if out := lib.OutputFile(); out != "" {
+            files[out] = primary
+        }
+    }
+    return files, nil
+}
+
+// TaskYAML returns the main task definition bytes (first .yaml in the map, or
+// the declared output_file).
+func (t *Transpiler) TaskYAML(files map[string]string, lib *capy.Library) ([]byte, error) {
+    if out := t.lib.OutputFile(); out != "" {
+        if s, ok := files[out]; ok {
+            return []byte(s), nil
+        }
+    }
+    for path, content := range files {
+        if strings.HasSuffix(path, ".yaml") || strings.HasSuffix(path, ".yml") {
+            return []byte(content), nil
+        }
+    }
+    return nil, fmt.Errorf("no YAML output in transpile result")
 }
 
 func (t *Transpiler) Reload(librarySrc string) error {
@@ -65,70 +108,61 @@ func (t *Transpiler) Reload(librarySrc string) error {
     }
     t.mu.Lock()
     t.lib = lib
-    t.cache = map[string]string{}
+    t.cache = map[string]map[string]string{}
     t.mu.Unlock()
     return nil
 }
 
-func (t *Transpiler) Introspect() []capy.FunctionInfo {
-    return t.lib.Introspect()
-}
+func (t *Transpiler) Introspect() []capy.FunctionInfo { return t.lib.Introspect() }
+func (t *Transpiler) DocsMarkdown() string            { return capy.RenderLibraryDocs(t.lib) }
+func (t *Transpiler) Extension() string               { return t.lib.Extension() }
 ```
+
+`infra/` imports Capy; only `orchestrator/` wires it into `MakeTaskRegistry`.
 
 ---
 
 ## Orchestrator wiring
 
 ```go
-// internal/orchestrator/features/makes.go (sketch)
-
 func MakeTaskRegistry(b *bundle.Root, hot bool) (features.TaskRegistry, error) {
     var tr *capyx.Transpiler
     if lp := b.CapyLibraryPath(); lp != "" {
         var err error
-        tr, err = capyx.NewFromBundle(b, lp)
+        tr, err = capyx.NewFromBundle(b.ReadFile, lp)
         if err != nil {
             return features.TaskRegistry{}, err
         }
     }
     load := func() ([]domain.TaskDef, map[string]domain.TaskDef, error) {
-        return loadAllTasks(b, tr)
+        return loadAllTasks(b, tr) // WalkCapy → Transpile → yaml.Unmarshal
     }
-    // ... same hot/cold split as today
+    // ... hot/cold split unchanged
 }
 ```
 
 ---
 
-## Embedded library (no bundle file)
+## Host sandboxing
 
-For single-binary demos, embed grammar:
+| Host | When to use |
+|---|---|
+| Default `NoOpHost` | User tasks, AI-generated source, CI |
+| `capyinfra.OSHost{}` | First-party `webtasks.capy` that reads version from env |
 
-```go
-//go:embed capy/webtasks.capy
-var webtasksLib string
-
-lib, _ := capy.NewLibrary(webtasksLib)
-```
-
-Users still author `.capy` task files in the bundle; only the grammar ships in the binary.
+Never set `OSHost` on the task-script transpile path unless the library source is
+fully trusted.
 
 ---
 
-## Introspection endpoint (optional)
-
-Expose grammar for editors:
+## Introspection & docs endpoints (optional)
 
 ```go
-// GET /capy/introspect → JSON FunctionInfo[]
-func handleCapyIntrospect(tr *capyx.Transpiler) http.HandlerFunc {
-    return func(w http.ResponseWriter, r *http.Request) {
-        json.NewEncoder(w).Encode(tr.Introspect())
-    }
-}
+// GET /capy/introspect  → lib.Introspect() JSON
+// GET /capy/docs        → capy.RenderLibraryDocs(lib) text/markdown
 ```
 
-Build VS Code completion from this JSON — same data as Capy playground wasm.
+Same data powers MCP (`capy-mcp`) and the WASM playground.
 
 ---
 
@@ -139,12 +173,15 @@ func TestTranspileBasicsTitle(t *testing.T) {
     lib, err := capy.NewLibraryFromFile("testdata/webtasks.capy")
     require.NoError(t, err)
     src, _ := os.ReadFile("testdata/basics-title.capy")
-    out, err := lib.Run(string(src))
+    primary, files, err := lib.RunMulti(string(src))
     require.NoError(t, err)
+    yaml := primary
+    if yaml == "" {
+        yaml = files["tasks/basics/title.yaml"]
+    }
     var d domain.TaskDef
-    require.NoError(t, yaml.Unmarshal([]byte(out), &d))
+    require.NoError(t, yamlv3.Unmarshal([]byte(yaml), &d))
     assert.Equal(t, "basics/title", d.Name)
-    assert.Len(t, d.Flow, 2)
 }
 ```
 

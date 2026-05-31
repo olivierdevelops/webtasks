@@ -96,6 +96,7 @@ nav:
     - Cookbook: cookbook.md
   - Capy integration:
     - capy-integration/index.md
+    - "Capy v0.20 overview": capy-integration/00-v020-overview.md
     - Why replace YAML?: capy-integration/01-why-replace-yaml.md
     - Capy primer: capy-integration/02-capy-primer.md
     - YAML mapping: capy-integration/03-yaml-capy-mapping.md

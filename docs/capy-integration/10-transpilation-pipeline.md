@@ -19,7 +19,18 @@ flowchart TD
     I --> J["chromedp"]
 ```
 
-Stages 1–5 are **new**. Stages 6–10 are **unchanged**.
+Stages 1–5 are **new** (Capy v0.20: `Run` or `RunMulti`). Stages 6–10 are **unchanged**.
+
+### RunMulti (optional)
+
+When the library declares multiple `file "…"` blocks, one task script can emit:
+
+| Output path | Contents |
+|---|---|
+| `tasks/crawl/hn.yaml` | TaskDef YAML |
+| `scripts/demo/helper.js` | Generated or verbatim JS (rare) |
+
+`infra/capyx.Transpile` returns `map[path]string`; the registry loader picks the `.yaml` entry.
 
 ---
 
