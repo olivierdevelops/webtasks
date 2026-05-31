@@ -79,6 +79,7 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Install: install.md
+  - Usage guide: usage.md
   - How it works: how-it-works.md
   - Writing tasks: writing-tasks.md
   - Examples:
